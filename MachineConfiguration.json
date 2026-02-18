@@ -1,0 +1,96 @@
+[{
+    "TargetMachineNames": ["Server01SA", "Server01SAB"],
+    "TimeZone": "AUS Eastern Standard Time",
+    "IISAppPools": [
+        {
+            "Name": "Pool1",
+            "ManagedRuntimeVersion": "v4.0",
+            "ManagedPipelineMode": "Integrated",
+            "AdvancancedSettings": {
+                "StartMode": "AlwaysRunning"
+            }
+        },
+        {
+            "Name": "Pool2",
+            "ManagedRuntimeVersion": "v4.0",
+            "ManagedPipelineMode": "Integrated",
+            "AdvancancedSettings": {
+                "StartMode": "AlwaysRunning"
+            }
+        }
+    ],
+    "IISWebSites": [{
+        "SiteName": "Site1",
+        "ContentPath": "e:\\inetpub\\content\\site1",
+        "AppPool": "Pool1",
+        "Bindings": [
+            {
+                "Protocol": "http",
+                "Port": 80,
+                "HostHeader": "site1.local"
+            }
+        ],
+        "AdvancedSettings": [
+            {
+                "PhysicalPathCredential": {
+
+                },
+                "PhysicalPathCredentialsLogon": "ClearText",
+                "PreloadEnabled": true
+            }
+        ],
+        "WebApps": [
+            {
+                "Name": "Site1",
+                "ContentPath": "e:\\inetpub\\content\\site1\\webapp1",
+                "AppPool": "Pool2",
+                "Bindings": [
+                    {
+                        "Protocol": "http",
+                        "Port": 80,
+                        "HostHeader": "site1.local"
+                    }
+                ],
+                "AdvancedSettings": [
+                    {
+                        "PhysicalPathCredential": {
+
+                        },
+                        "PhysicalPathCredentialsLogon": "ClearText",
+                        "PreloadEnabled": true
+                    }
+                ]
+            }
+        ]
+    }],
+    "Directories": [
+        {
+            "Path": "e:\\BusinessObjects",
+            "Attributes": {
+                "ReadOnly": false,
+                "Hidden": false,
+                "System": false
+            },
+            "Permissions": [
+                {
+                    "AccountName": "Domain\\Administrator",
+                    "Access": "FullControl"
+                }
+            ],
+            "Share": {
+                "Name": "BusinessObjects-Share",
+                "Path": "e:\\BusinessObjects",
+                "Type": "Folder",
+                "Description": "Share-BusinessObjects",
+                "AdministrativeShare": false,
+                "Permissions": [
+                    {
+                        "AccountName": "Domain\\Administrator",
+                        "Access": "FullControl"
+                    }
+                ]
+            }
+        }
+    ]
+
+}]
