@@ -29,7 +29,7 @@ if (-not (Test-Path "IIS:\Sites\$siteName")) {
     # Ensure content path directory exists first (though Ensure-Directory should have run, duplication for safety)
     if (-not (Test-Path $Config.ContentPath)) { New-Item -Path $Config.ContentPath -ItemType Directory -Force | Out-Null }
 
-    New-Website -Name $siteName -Port $port -Protocol $protocol -HostHeader $hostHeader -PhysicalPath $Config.ContentPath -ApplicationPool $Config.AppPool -Force
+    New-Website -Name $siteName -Port $port -IPAddress "*" -HostHeader $hostHeader -PhysicalPath $Config.ContentPath -ApplicationPool $Config.AppPool -Force
 } else {
     # Update Physical Path if changed
     $site = Get-Item "IIS:\Sites\$siteName"
