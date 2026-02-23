@@ -46,18 +46,75 @@ if (-not (Test-Path "IIS:\Sites\$siteName")) {
 }
 
 # 2. Ensure Bindings
-# Strategy: Add missing bindings. (Optional: Remove extra bindings if strict equality desired, but usually dangerous)
+# Strategy: Add missing bindings and remove extra bindings not in config
+$existingBindings = Get-WebBinding -Name $siteName
+
+# Keep track of which bindings should exist based on config
+$desiredBindings = @()
+
 foreach ($binding in $Config.Bindings) {
-    $protocol = $binding.Protocol
-    $port = $binding.Port
-    $hostHeader = $binding.HostHeader
+    if ($binding -is [System.Management.Automation.PSCustomObject]) {
+        # if it's a parsed object from JSON
+        $protocol = $binding.Protocol
+        $port = $binding.Port
+        $hostHeader = $binding.HostHeader
+    } else {
+        # if it's a hashtable
+        $protocol = $binding["Protocol"]
+        $port = $binding["Port"]
+        $hostHeader = $binding["HostHeader"]
+    }
+
     if (-not $hostHeader) { $hostHeader = "" }
+    
+    # Store a normalized form to compare later
+    $bindingInfo = "$protocol`:$port`:$hostHeader"
+    $desiredBindings += $bindingInfo
 
     # Check if binding exists
-    $exists = Get-WebBinding -Name $siteName -Protocol $protocol -Port $port -HostHeader $hostHeader
-    if (-not $exists) {
-        Write-Verbose ("Adding Binding: {0} {1}:{2}" -f $protocol, $hostHeader, $port)
-        New-WebBinding -Name $siteName -Protocol $protocol -Port $port -HostHeader $hostHeader
+    if ($protocol -and $port) {
+        $exists = Get-WebBinding -Name $siteName -Protocol $protocol -Port $port -HostHeader $hostHeader
+        if (-not $exists) {
+            Write-Verbose ("Adding Binding: {0} {1}:{2}" -f $protocol, $hostHeader, $port)
+            if ([string]::IsNullOrWhiteSpace($hostHeader)) {
+                New-WebBinding -Name $siteName -Protocol $protocol -Port $port -IPAddress "*"
+            } else {
+                New-WebBinding -Name $siteName -Protocol $protocol -Port $port -HostHeader $hostHeader -IPAddress "*"
+            }
+        }
+    }
+}
+
+# Now evaluate existing bindings to see if any should be removed
+if ($existingBindings) {
+    foreach ($exBind in $existingBindings) {
+        # IIS module returns bindings with bindingInformation like "IP:Port:HostHeader"
+        # Since IP might be * (or blank in IIS Manager which is * anyway), parse it out.
+        $exBindInfoParts = $exBind.bindingInformation -split ":"
+        $exPort = $exBindInfoParts[1]
+        $exHostHeader = $exBindInfoParts[2]
+        $exProtocol = $exBind.protocol
+
+        if (-not $exHostHeader) { $exHostHeader = "" }
+        if (-not $exPort) { $exPort = 80 } # Fallback port
+
+        $exBindingKey = "$exProtocol`:$exPort`:$exHostHeader"
+
+        # Check if the existing binding was in our desired list
+        $found = $false
+        foreach ($des in $desiredBindings) {
+            # Simple case-insensitive match
+            if ($des -eq $exBindingKey) {
+                $found = $true
+                break
+            }
+        }
+
+        # If it wasn't in the config, remove it
+        if (-not $found) {
+            Write-Verbose ("Removing unspecified Binding: {0} {1}:{2}" -f $exProtocol, $exHostHeader, $exPort)
+            Remove-WebBinding -Name $siteName -Protocol $exProtocol -Port $exPort -HostHeader $exHostHeader
+        }
     }
 }
 
