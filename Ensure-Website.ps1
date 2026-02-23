@@ -119,6 +119,24 @@ if ($existingBindings) {
 }
 
 if ($Config.AdvancedSettings) {
+    # Helper to deeply resolve JSON PSCustomObjects to Hashtables
+    function Convert-ToHashtable {
+        param([Parameter(Mandatory=$true)] [AllowNull()] $Obj)
+        if ($null -eq $Obj) { return $null }
+        if ($Obj -is [array]) {
+            $arr = @()
+            foreach ($item in $Obj) { $arr += Convert-ToHashtable -Obj $item }
+            return $arr
+        } elseif ($Obj -is [System.Management.Automation.PSCustomObject]) {
+            $hash = @{}
+            foreach ($prop in $Obj.PSObject.Properties) {
+                $hash[$prop.Name] = Convert-ToHashtable -Obj $prop.Value
+            }
+            return $hash
+        }
+        return $Obj
+    }
+
     # JSON might have AdvancedSettings as an array of objects or a single object.
     $advList = if ($Config.AdvancedSettings -is [array]) { $Config.AdvancedSettings } else { @($Config.AdvancedSettings) }
 
@@ -126,25 +144,29 @@ if ($Config.AdvancedSettings) {
         if ($adv) {
             foreach ($property in $adv.PSObject.Properties) {
                 $propName = $property.Name
-                $propValue = $property.Value
+                $propValue = Convert-ToHashtable -Obj $property.Value
                 
-                # If the value from JSON is an object (PSCustomObject), IIS cmdlets usually expect a Hashtable instead.
-                if ($propValue -is [System.Management.Automation.PSCustomObject]) {
-                    $hash = @{}
-                    foreach ($subProp in $propValue.PSObject.Properties) {
-                        $hash[$subProp.Name] = $subProp.Value
-                    }
-                    $propValue = $hash
-                }
-
                 if (-not [string]::IsNullOrWhiteSpace($propName)) {
-                    Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on Site '$siteName'"
+                    $baseFilter = "system.applicationHost/sites/site[@name='$siteName']"
                     try {
-                        # IIS provider is finicky with Get-ItemProperty returning deeply nested objects vs direct values.
-                        # For idempotency, we just set it. Set-ItemProperty on IIS provider is generally safe to reapply.
-                        Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue
+                        if ($propValue -is [hashtable] -or $propValue -is [array]) {
+                            Write-Verbose "Dynamically setting collection property '$propName' on Site '$siteName'"
+                            $collectionFilter = "$baseFilter/$($propName -replace '\.', '/')"
+                            
+                            # Clear existing collection
+                            Clear-WebConfiguration -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $collectionFilter -ErrorAction SilentlyContinue
+                            
+                            # Add new items
+                            $values = if ($propValue -is [array]) { $propValue } else { @($propValue) }
+                            foreach ($val in $values) {
+                                Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $collectionFilter -Name "." -Value $val -ErrorAction Stop
+                            }
+                        } else {
+                            Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on Site '$siteName'"
+                            Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $baseFilter -Name $propName -Value $propValue -ErrorAction Stop
+                        }
                     } catch {
-                        Write-Warning "Failed to set property '$propName' on Site '$siteName'. Ensure the property path matches IIS Schema (e.g., 'virtualDirectoryDefaults.userName'). Error: $_"
+                        Write-Warning "Failed to set property '$propName' on Site '$siteName'. Ensure the property path matches IIS Schema. Error: $_"
                     }
                 }
             }
