@@ -74,6 +74,23 @@ foreach ($configBlock in $configData) {
         $matchFound = $true
         Write-Host "Found configuration for $currentMachine" -ForegroundColor Green
 
+        # 0. Set TimeZone
+        if ($configBlock.TimeZone) {
+            Write-Host "Checking TimeZone..." -ForegroundColor Cyan
+            $currentTimeZone = (Get-TimeZone).Id
+            if ($currentTimeZone -ne $configBlock.TimeZone) {
+                try {
+                    Write-Verbose "Changing TimeZone from '$currentTimeZone' to '$($configBlock.TimeZone)'"
+                    Set-TimeZone -Id $configBlock.TimeZone -ErrorAction Stop
+                    Write-Host "Set TimeZone to: $($configBlock.TimeZone)" -ForegroundColor Green
+                } catch {
+                    Write-Error "Failed to set TimeZone to '$($configBlock.TimeZone)'. Ensure the ID is valid and script runs as Administrator. Error: $_"
+                }
+            } else {
+                Write-Verbose "TimeZone is already '$currentTimeZone'."
+            }
+        }
+
         # 1. Apply Directories
         if ($configBlock.Directories) {
             Write-Host "Processing Directories..." -ForegroundColor Cyan
