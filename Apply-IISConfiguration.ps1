@@ -97,6 +97,12 @@ foreach ($configBlock in $configData) {
                 .\Ensure-Website.ps1 -Config $site
             }
         }
+
+        # 4. Apply Hosts file entries
+        if ($configBlock.Hosts) {
+            Write-Host "Processing Hosts file entries..." -ForegroundColor Cyan
+            .\Ensure-Hosts.ps1 -Config $configBlock.Hosts
+        }
     }
 }
 
