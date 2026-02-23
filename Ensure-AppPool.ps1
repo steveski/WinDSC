@@ -80,18 +80,19 @@ if ($advSettings) {
 
         # Skip empty properties
         if (-not [string]::IsNullOrWhiteSpace($propName)) {
-            Write-Verbose "Dynamically setting advanced property '$propName' to on AppPool '$poolName'"
+            
+            # Auto-correct PascalCase to camelCase for the IIS provider
+            # e.g. "StartMode" -> "startMode", "ProcessModel.idleTimeout" -> "processModel.idleTimeout"
+            if ($propName[0] -cmatch '[A-Z]') {
+                $propName = [char]::ToLower($propName[0]) + $propName.Substring(1)
+            }
+
+            Write-Verbose "Dynamically setting advanced property '$propName' on AppPool '$poolName'"
             try {
-                if ($propValue -is [hashtable] -or $propValue -is [array]) {
-                    # For collections like recycling schedules, Set-ItemProperty expects the hashtable/array directly.
-                    # Note: We append @{...} or @(...) and let the IIS provider handle it natively, but sometimes it requires clearing first
-                    Clear-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -ErrorAction SilentlyContinue
-                    Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue
-                } else {
-                    Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue
-                }
+                Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue -ErrorAction Stop
+                Write-Host "Set $propName on $poolName successfully" -ForegroundColor Green
             } catch {
-                Write-Warning "Failed to set property '$propName' on AppPool '$poolName'. Error: $_"
+                Write-Warning "Failed to set property '$propName' on AppPool '$poolName'. Check property spelling/casing! Error: $_"
             }
         }
     }

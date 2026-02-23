@@ -147,17 +147,18 @@ if ($Config.AdvancedSettings) {
                 $propValue = Convert-ToHashtable -Obj $property.Value
                 
                 if (-not [string]::IsNullOrWhiteSpace($propName)) {
-                    Write-Verbose "Dynamically setting advanced property '$propName' to on Site '$siteName'"
+                    
+                    # Auto-correct PascalCase to camelCase for the IIS provider
+                    if ($propName[0] -cmatch '[A-Z]') {
+                        $propName = [char]::ToLower($propName[0]) + $propName.Substring(1)
+                    }
+
+                    Write-Verbose "Dynamically setting advanced property '$propName' on Site '$siteName'"
                     try {
-                        if ($propValue -is [hashtable] -or $propValue -is [array]) {
-                            # For collections, Set-ItemProperty expects the hashtable/array directly.
-                            Clear-ItemProperty "IIS:\Sites\$siteName" -Name $propName -ErrorAction SilentlyContinue
-                            Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue
-                        } else {
-                            Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue
-                        }
+                        Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue -ErrorAction Stop
+                        Write-Host "Set $propName on $siteName successfully" -ForegroundColor Green
                     } catch {
-                        Write-Warning "Failed to set property '$propName' on Site '$siteName'. Error: $_"
+                        Write-Warning "Failed to set property '$propName' on Site '$siteName'. Check property spelling/casing! Error: $_"
                     }
                 }
             }
