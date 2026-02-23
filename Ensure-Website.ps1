@@ -153,6 +153,13 @@ if ($Config.AdvancedSettings) {
                         $propName = [char]::ToLower($propName[0]) + $propName.Substring(1)
                     }
 
+                    # Some common "website" properties actually live under virtualDirectoryDefaults or applicationDefaults
+                    if ($propName -match "^physicalPathCredential") {
+                        $propName = "virtualDirectoryDefaults.$propName"
+                    } elseif ($propName -match "^preloadEnabled") {
+                        $propName = "applicationDefaults.$propName"
+                    }
+
                     Write-Verbose "Dynamically setting advanced property '$propName' on Site '$siteName'"
                     try {
                         Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue -ErrorAction Stop

@@ -1,5 +1,5 @@
 [{
-    "TargetMachineNames": ["Server01SA", "Server01SAB"],
+    "TargetMachineNames": ["Server01SA", "Server01SAB", "SLAPPY"],
     "TimeZone": "AUS Eastern Standard Time",
     "IISAppPools": [
         {
@@ -13,19 +13,21 @@
         {
             "Name": "Pool2",
             "ManagedRuntimeVersion": "v4.0",
-            "ManagedPipelineMode": "Integrated",
+            "ManagedPipelineMode": "Classic",
             "AdvancedSettings": {
                 "StartMode": "AlwaysRunning",
-                "ProcessModel.idleTimeout": "00:35:00",
+                "QueueLength": 3123,
+                "ProcessModel.idleTimeout": "00:25:00",
                 "recycling.periodicRestart.schedule": [
-                    { "value": "03:00:00" }
+                    { "value": "02:00:00" },
+                    { "value": "15:00:00" }
                 ]
             }
         }
     ],
     "IISWebSites": [{
         "SiteName": "Site1",
-        "ContentPath": "e:\\inetpub\\content\\site1",
+        "ContentPath": "c:\\inetpub\\content\\site1",
         "AppPool": "Pool1",
         "Bindings": [
             {
@@ -46,7 +48,7 @@
         "WebApps": [
             {
                 "Name": "Site1",
-                "ContentPath": "e:\\inetpub\\content\\site1\\webapp1",
+                "ContentPath": "c:\\inetpub\\content\\site1\\webapp1",
                 "AppPool": "Pool2",
                 "Bindings": [
                     {
@@ -69,7 +71,7 @@
     }],
     "Directories": [
         {
-            "Path": "e:\\BusinessObjects",
+            "Path": "c:\\BusinessObjects",
             "Attributes": {
                 "ReadOnly": false,
                 "Hidden": false,
@@ -77,13 +79,13 @@
             },
             "Permissions": [
                 {
-                    "AccountName": "Domain\\Administrator",
+                    "AccountName": "Administrators",
                     "Access": "FullControl"
                 }
             ],
             "Share": {
                 "Name": "BusinessObjects-Share",
-                "Path": "e:\\BusinessObjects",
+                "Path": "c:\\BusinessObjects",
                 "Type": "Folder",
                 "Description": "Share-BusinessObjects",
                 "AdministrativeShare": false,
@@ -101,14 +103,12 @@
         "dummy.site1.local": "127.0.0.1"
     },
     "EnabledFeatures": [
-        "Web-Static-Content"
     ],
     "DisabledFeatures": [
-        "DHCP"
     ],
     "EventLogs": {
         "MyCustomAppSource": {
-            "LogName": "Application",
+            "LogName": "SteveTestLog",
             "EventId": 3000,
             "Level": "Information"
         }
