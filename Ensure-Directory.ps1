@@ -37,9 +37,13 @@ if ($Config.Attributes) {
     $item = Get-Item -Path $Config.Path
     
     if ($null -ne $Config.Attributes.ReadOnly) {
-        if ($item.IsReadOnly -ne $Config.Attributes.ReadOnly) {
+        if ($item.Attributes.HasFlag([System.IO.FileAttributes]::ReadOnly) -ne $Config.Attributes.ReadOnly) {
             Write-Verbose "Setting ReadOnly to $($Config.Attributes.ReadOnly)"
-            $item.IsReadOnly = $Config.Attributes.ReadOnly
+            if ($Config.Attributes.ReadOnly) {
+                $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::ReadOnly
+            } else {
+                $item.Attributes = $item.Attributes -band (-not [System.IO.FileAttributes]::ReadOnly)
+            }
         }
     }
     
