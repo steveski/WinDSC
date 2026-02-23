@@ -96,6 +96,13 @@
     "Hosts": {
         "site1.local": "127.0.0.1",
         "dummy.site1.local": "127.0.0.1"
+    },
+    "EventLogs": {
+        "MyCustomAppSource": {
+            "LogName": "Application",
+            "EventId": 3000,
+            "Level": "Information"
+        }
     }
 
 }]

@@ -103,6 +103,12 @@ foreach ($configBlock in $configData) {
             Write-Host "Processing Hosts file entries..." -ForegroundColor Cyan
             .\Ensure-Hosts.ps1 -Config $configBlock.Hosts
         }
+
+        # 5. Apply Event Logs
+        if ($configBlock.EventLogs) {
+            Write-Host "Processing Event Logs..." -ForegroundColor Cyan
+            .\Ensure-EventLog.ps1 -Config $configBlock.EventLogs
+        }
     }
 }
 
