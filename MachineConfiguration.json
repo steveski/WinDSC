@@ -6,7 +6,7 @@
             "Name": "Pool1",
             "ManagedRuntimeVersion": "v4.0",
             "ManagedPipelineMode": "Integrated",
-            "AdvancancedSettings": {
+            "AdvancedSettings": {
                 "StartMode": "AlwaysRunning"
             }
         },
@@ -14,9 +14,12 @@
             "Name": "Pool2",
             "ManagedRuntimeVersion": "v4.0",
             "ManagedPipelineMode": "Integrated",
-            "AdvancancedSettings": {
+            "AdvancedSettings": {
                 "StartMode": "AlwaysRunning",
-                "ProcessModelIdleTimeout": "00:35:00"
+                "ProcessModel.idleTimeout": "00:35:00",
+                "recycling.periodicRestart.schedule": {
+                    "value": "03:00:00"
+                }
             }
         }
     ],

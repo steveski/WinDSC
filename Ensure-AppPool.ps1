@@ -50,10 +50,8 @@ if ($changes) {
     $pool | Set-Item
 }
 
-# 3. Handle Advanced Settings (typographical robustness included)
-$advSettings = $null
-if ($Config.AdvancedSettings) { $advSettings = $Config.AdvancedSettings }
-elseif ($Config.AdvancancedSettings) { $advSettings = $Config.AdvancancedSettings }
+# 3. Handle Advanced Settings
+$advSettings = $Config.AdvancedSettings
 
 if ($advSettings) {
     # Convert CustomObject to a Hashtable to easily iterate properties if needed, 
@@ -61,6 +59,15 @@ if ($advSettings) {
     foreach ($property in $advSettings.PSObject.Properties) {
         $propName = $property.Name
         $propValue = $property.Value
+
+        # If the value from JSON is an object (PSCustomObject), IIS cmdlets usually expect a Hashtable instead.
+        if ($propValue -is [System.Management.Automation.PSCustomObject]) {
+            $hash = @{}
+            foreach ($subProp in $propValue.PSObject.Properties) {
+                $hash[$subProp.Name] = $subProp.Value
+            }
+            $propValue = $hash
+        }
 
         # Skip empty properties or system properties that might be injected by PowerShell
         if (-not [string]::IsNullOrWhiteSpace($propName)) {

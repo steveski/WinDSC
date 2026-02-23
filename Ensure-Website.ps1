@@ -128,6 +128,15 @@ if ($Config.AdvancedSettings) {
                 $propName = $property.Name
                 $propValue = $property.Value
                 
+                # If the value from JSON is an object (PSCustomObject), IIS cmdlets usually expect a Hashtable instead.
+                if ($propValue -is [System.Management.Automation.PSCustomObject]) {
+                    $hash = @{}
+                    foreach ($subProp in $propValue.PSObject.Properties) {
+                        $hash[$subProp.Name] = $subProp.Value
+                    }
+                    $propValue = $hash
+                }
+
                 if (-not [string]::IsNullOrWhiteSpace($propName)) {
                     Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on Site '$siteName'"
                     try {
