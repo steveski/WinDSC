@@ -56,12 +56,12 @@ if ($Config.AdvancedSettings) { $advSettings = $Config.AdvancedSettings }
 elseif ($Config.AdvancancedSettings) { $advSettings = $Config.AdvancancedSettings }
 
 if ($advSettings) {
-    # StartMode is a property of processModel
+    # StartMode is a direct property of the AppPool, not under processModel
     if ($advSettings.StartMode) {
-        $currentStartMode = $pool.processModel.startMode
+        $currentStartMode = $pool.startMode
         if ($currentStartMode -ne $advSettings.StartMode) {
              Write-Verbose "Setting startMode to $($advSettings.StartMode)"
-             Set-ItemProperty "IIS:\AppPools\$poolName" -Name processModel.startMode -Value $advSettings.StartMode
+             Set-ItemProperty "IIS:\AppPools\$poolName" -Name startMode -Value $advSettings.StartMode
         }
     }
     

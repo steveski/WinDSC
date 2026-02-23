@@ -56,7 +56,7 @@ foreach ($binding in $Config.Bindings) {
     # Check if binding exists
     $exists = Get-WebBinding -Name $siteName -Protocol $protocol -Port $port -HostHeader $hostHeader
     if (-not $exists) {
-        Write-Verbose "Adding Binding: $protocol $hostHeader:$port"
+        Write-Verbose ("Adding Binding: {0} {1}:{2}" -f $protocol, $hostHeader, $port)
         New-WebBinding -Name $siteName -Protocol $protocol -Port $port -HostHeader $hostHeader
     }
 }
@@ -69,7 +69,7 @@ if ($Config.AdvancedSettings) {
     else { $adv = $Config.AdvancedSettings }
 
     if ($adv) {
-        if ($adv.PreloadEnabled -ne $null) {
+        if ($null -ne $adv.PreloadEnabled) {
             Set-ItemProperty "IIS:\Sites\$siteName" -Name preloadEnabled -Value $adv.PreloadEnabled
         }
         
