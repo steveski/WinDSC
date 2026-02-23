@@ -56,15 +56,24 @@ if ($Config.AdvancedSettings) { $advSettings = $Config.AdvancedSettings }
 elseif ($Config.AdvancancedSettings) { $advSettings = $Config.AdvancancedSettings }
 
 if ($advSettings) {
-    # StartMode is a direct property of the AppPool, not under processModel
-    if ($advSettings.StartMode) {
-        $currentStartMode = $pool.startMode
-        if ($currentStartMode -ne $advSettings.StartMode) {
-             Write-Verbose "Setting startMode to $($advSettings.StartMode)"
-             Set-ItemProperty "IIS:\AppPools\$poolName" -Name startMode -Value $advSettings.StartMode
+    # Convert CustomObject to a Hashtable to easily iterate properties if needed, 
+    # or use PSMemberInfo
+    foreach ($property in $advSettings.PSObject.Properties) {
+        $propName = $property.Name
+        $propValue = $property.Value
+
+        # Skip empty properties or system properties that might be injected by PowerShell
+        if (-not [string]::IsNullOrWhiteSpace($propName)) {
+            Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on AppPool '$poolName'"
+            try {
+                # Read current value to be idempotent if possible, though Set-ItemProperty is generally safe to reapply
+                $currentValue = Get-ItemProperty -Path "IIS:\AppPools\$poolName" -Name $propName -ErrorAction SilentlyContinue
+                if ($currentValue.Item($propName) -ne $propValue -and $currentValue.$propName -ne $propValue) {
+                    Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue
+                }
+            } catch {
+                Write-Warning "Failed to set property '$propName' on AppPool '$poolName'. Ensure the property name exactly matches the IIS Schema. Error: $_"
+            }
         }
     }
-    
-    # Handle other potential advanced settings if needed (extensible here)
-    # The JSON schema currently only shows StartMode.
 }

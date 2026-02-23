@@ -61,21 +61,27 @@ foreach ($binding in $Config.Bindings) {
     }
 }
 
-# 3. Handle specific Advanced Settings from JSON
 if ($Config.AdvancedSettings) {
-    # JSON has AdvancedSettings as an array of objects? Check first item.
-    $adv = $null
-    if ($Config.AdvancedSettings -is [array]) { $adv = $Config.AdvancedSettings[0] }
-    else { $adv = $Config.AdvancedSettings }
+    # JSON might have AdvancedSettings as an array of objects or a single object.
+    $advList = if ($Config.AdvancedSettings -is [array]) { $Config.AdvancedSettings } else { @($Config.AdvancedSettings) }
 
-    if ($adv) {
-        if ($null -ne $adv.PreloadEnabled) {
-            Set-ItemProperty "IIS:\Sites\$siteName" -Name preloadEnabled -Value $adv.PreloadEnabled
-        }
-        
-        if ($adv.PhysicalPathCredentialsLogon) {
-             Set-ItemProperty "IIS:\Sites\$siteName" -Name virtualDirectoryDefaults.userName -Value $adv.PhysicalPathCredentialsLogon
-             # Note: Actual credential object setting often requires specific provider handling or simpler text
+    foreach ($adv in $advList) {
+        if ($adv) {
+            foreach ($property in $adv.PSObject.Properties) {
+                $propName = $property.Name
+                $propValue = $property.Value
+                
+                if (-not [string]::IsNullOrWhiteSpace($propName)) {
+                    Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on Site '$siteName'"
+                    try {
+                        # IIS provider is finicky with Get-ItemProperty returning deeply nested objects vs direct values.
+                        # For idempotency, we just set it. Set-ItemProperty on IIS provider is generally safe to reapply.
+                        Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue
+                    } catch {
+                        Write-Warning "Failed to set property '$propName' on Site '$siteName'. Ensure the property path matches IIS Schema (e.g., 'virtualDirectoryDefaults.userName'). Error: $_"
+                    }
+                }
+            }
         }
     }
 }

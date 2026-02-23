@@ -15,7 +15,8 @@
             "ManagedRuntimeVersion": "v4.0",
             "ManagedPipelineMode": "Integrated",
             "AdvancancedSettings": {
-                "StartMode": "AlwaysRunning"
+                "StartMode": "AlwaysRunning",
+                "ProcessModelIdleTimeout": "00:35:00"
             }
         }
     ],
