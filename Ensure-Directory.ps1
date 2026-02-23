@@ -140,6 +140,10 @@ if ($Config.Share) {
         if ($Config.Share.Permissions) {
            foreach ($perm in $Config.Share.Permissions) {
                $access = $perm.Access
+               
+               # Handle terminology mismatch: NTFS uses "FullControl", SMB Uses "Full"
+               if ($access -eq "FullControl") { $access = "Full" }
+
                # Grant-SmbShareAccess handles adding/updating
                try {
                    Grant-SmbShareAccess -Name $shareName -AccountName $perm.AccountName -AccessRight $access -Force | Out-Null
