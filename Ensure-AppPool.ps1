@@ -73,11 +73,10 @@ if ($advSettings) {
         if (-not [string]::IsNullOrWhiteSpace($propName)) {
             Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on AppPool '$poolName'"
             try {
-                # Read current value to be idempotent if possible, though Set-ItemProperty is generally safe to reapply
-                $currentValue = Get-ItemProperty -Path "IIS:\AppPools\$poolName" -Name $propName -ErrorAction SilentlyContinue
-                if ($currentValue.Item($propName) -ne $propValue -and $currentValue.$propName -ne $propValue) {
-                    Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue
-                }
+                # IIS provider is finicky with Get-ItemProperty returning deeply nested objects vs direct values.
+                # It evaluates complex property paths poorly for comparisons.
+                # For idempotency, we just set it. Set-ItemProperty on IIS provider is generally safe to reapply.
+                Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue
             } catch {
                 Write-Warning "Failed to set property '$propName' on AppPool '$poolName'. Ensure the property name exactly matches the IIS Schema. Error: $_"
             }

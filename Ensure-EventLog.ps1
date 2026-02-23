@@ -72,9 +72,9 @@ foreach ($property in $eventLogsObject.PSObject.Properties) {
     # If they supplied them, maybe they want a test event written when it's configured? Let's optionally do that.
     # We won't throw an error if this part fails as it's secondary.
     if ($eventId -and $level) {
-        $entryType = "Information"
-        if ($level -match "Warn") { $entryType = "Warning" }
-        elseif ($level -match "Err") { $entryType = "Error" }
+        # $entryType = "Information"
+        # if ($level -match "Warn") { $entryType = "Warning" }
+        # elseif ($level -match "Err") { $entryType = "Error" }
 
         try {
             # Write-EventLog -LogName $logName -Source $sourceName -EventId $eventId -EntryType $entryType -Message "Configuration Applied via IISDSC" -ErrorAction SilentlyContinue
