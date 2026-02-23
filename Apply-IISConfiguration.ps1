@@ -91,6 +91,12 @@ foreach ($configBlock in $configData) {
             }
         }
 
+        # 0.5. Apply Windows Server Features
+        if ($configBlock.EnabledFeatures -or $configBlock.DisabledFeatures) {
+            Write-Host "Processing Windows Server Features..." -ForegroundColor Cyan
+            .\Ensure-Server-Features.ps1 -Config $configBlock
+        }
+
         # 1. Apply Directories
         if ($configBlock.Directories) {
             Write-Host "Processing Directories..." -ForegroundColor Cyan
