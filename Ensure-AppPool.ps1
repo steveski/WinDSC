@@ -80,23 +80,15 @@ if ($advSettings) {
 
         # Skip empty properties
         if (-not [string]::IsNullOrWhiteSpace($propName)) {
-            $baseFilter = "system.applicationHost/applicationPools/add[@name='$poolName']"
+            Write-Verbose "Dynamically setting advanced property '$propName' to on AppPool '$poolName'"
             try {
                 if ($propValue -is [hashtable] -or $propValue -is [array]) {
-                    Write-Verbose "Dynamically setting collection property '$propName' on AppPool '$poolName'"
-                    $collectionFilter = "$baseFilter/$($propName -replace '\.', '/')"
-                    
-                    # Clear existing collection (e.g., old schedules)
-                    Clear-WebConfiguration -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $collectionFilter -ErrorAction SilentlyContinue
-                    
-                    # Add new items
-                    $values = if ($propValue -is [array]) { $propValue } else { @($propValue) }
-                    foreach ($val in $values) {
-                        Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $collectionFilter -Name "." -Value $val -ErrorAction Stop
-                    }
+                    # For collections like recycling schedules, Set-ItemProperty expects the hashtable/array directly.
+                    # Note: We append @{...} or @(...) and let the IIS provider handle it natively, but sometimes it requires clearing first
+                    Clear-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -ErrorAction SilentlyContinue
+                    Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue
                 } else {
-                    Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on AppPool '$poolName'"
-                    Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $baseFilter -Name $propName -Value $propValue -ErrorAction Stop
+                    Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue
                 }
             } catch {
                 Write-Warning "Failed to set property '$propName' on AppPool '$poolName'. Error: $_"

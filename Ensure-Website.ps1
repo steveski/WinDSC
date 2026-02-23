@@ -147,26 +147,17 @@ if ($Config.AdvancedSettings) {
                 $propValue = Convert-ToHashtable -Obj $property.Value
                 
                 if (-not [string]::IsNullOrWhiteSpace($propName)) {
-                    $baseFilter = "system.applicationHost/sites/site[@name='$siteName']"
+                    Write-Verbose "Dynamically setting advanced property '$propName' to on Site '$siteName'"
                     try {
                         if ($propValue -is [hashtable] -or $propValue -is [array]) {
-                            Write-Verbose "Dynamically setting collection property '$propName' on Site '$siteName'"
-                            $collectionFilter = "$baseFilter/$($propName -replace '\.', '/')"
-                            
-                            # Clear existing collection
-                            Clear-WebConfiguration -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $collectionFilter -ErrorAction SilentlyContinue
-                            
-                            # Add new items
-                            $values = if ($propValue -is [array]) { $propValue } else { @($propValue) }
-                            foreach ($val in $values) {
-                                Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $collectionFilter -Name "." -Value $val -ErrorAction Stop
-                            }
+                            # For collections, Set-ItemProperty expects the hashtable/array directly.
+                            Clear-ItemProperty "IIS:\Sites\$siteName" -Name $propName -ErrorAction SilentlyContinue
+                            Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue
                         } else {
-                            Write-Verbose "Dynamically setting advanced property '$propName' to '$propValue' on Site '$siteName'"
-                            Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $baseFilter -Name $propName -Value $propValue -ErrorAction Stop
+                            Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue
                         }
                     } catch {
-                        Write-Warning "Failed to set property '$propName' on Site '$siteName'. Ensure the property path matches IIS Schema. Error: $_"
+                        Write-Warning "Failed to set property '$propName' on Site '$siteName'. Error: $_"
                     }
                 }
             }
