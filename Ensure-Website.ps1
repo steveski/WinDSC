@@ -210,5 +210,56 @@ if ($Config.WebApps) {
                  Set-ItemProperty $fullPath -Name applicationPool -Value $appConfig.AppPool
             }
         }
+
+        # Handle Advanced Settings for WebApp
+        if ($appConfig.AdvancedSettings) {
+            $appAdvList = if ($appConfig.AdvancedSettings -is [array]) { $appConfig.AdvancedSettings } else { @($appConfig.AdvancedSettings) }
+            
+            foreach ($appAdv in $appAdvList) {
+                if ($appAdv) {
+                    foreach ($property in $appAdv.PSObject.Properties) {
+                        $propName = $property.Name
+                        $propValue = Convert-ToHashtable -Obj $property.Value
+                        
+                        if (-not [string]::IsNullOrWhiteSpace($propName)) {
+                            
+                            # Auto-correct PascalCase to camelCase for the IIS provider
+                            if ($propName[0] -cmatch '[A-Z]') {
+                                $propName = [char]::ToLower($propName[0]) + $propName.Substring(1)
+                            }
+        
+                            # Some common "website" properties actually live under virtualDirectoryDefaults or applicationDefaults
+                            if ($propName -match "^physicalPathCredential") {
+                                $propName = "virtualDirectoryDefaults.$propName"
+                            } elseif ($propName -match "^preloadEnabled") {
+                                $propName = "applicationDefaults.$propName"
+                            }
+        
+                            Write-Verbose "Dynamically setting advanced property '$propName' on WebApp '$appName'"
+                            try {
+                                if ($propName -match "/") {
+                                    # It's an explicit WebConfiguration path
+                                    $lastDotIndex = $propName.LastIndexOf('.')
+                                    if ($lastDotIndex -gt -1) {
+                                        $filter = $propName.Substring(0, $lastDotIndex)
+                                        $name = $propName.Substring($lastDotIndex + 1)
+                                        # Use Location "$siteName/$appName" for nested apps
+                                        Set-WebConfigurationProperty -PSPath "IIS:\" -Location "$siteName/$appName" -Filter $filter -Name $name -Value $propValue -ErrorAction Stop
+                                    } else {
+                                        Write-Warning "WebConfiguration property '$propName' must contain a dot separator for the property name."
+                                    }
+                                } else {
+                                    # It's a standard IIS Site item property - Use $fullPath for nested apps
+                                    Set-ItemProperty $fullPath -Name $propName -Value $propValue -ErrorAction Stop
+                                }
+                                Write-Host "Set $propName on $appName successfully" -ForegroundColor Green
+                            } catch {
+                                Write-Warning "Failed to set property '$propName' on WebApp '$appName'. Check property spelling/casing! Error: $_"
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
