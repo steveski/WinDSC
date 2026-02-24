@@ -36,6 +36,12 @@
                 "HostHeader": "site1.local"
             }
         ],
+        "FailedRequestTracing":
+        {
+          "Enabled": true,
+          "LogDirectory": "E:\\inetpub\\logs\\FailedReqLogFiles\\extranet",
+          "MaxTraceFiles": 50
+        },
         "AdvancedSettings": [
             {
                 "PhysicalPathCredential": {

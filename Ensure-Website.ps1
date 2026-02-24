@@ -118,6 +118,28 @@ if ($existingBindings) {
     }
 }
 
+# 2.5 Failed Request Tracing
+if ($Config.FailedRequestTracing) {
+    $frt = $Config.FailedRequestTracing
+    Write-Verbose "Configuring Failed Request Tracing for Site '$siteName'"
+    try {
+        if ($null -ne $frt.Enabled) {
+            Set-ItemProperty "IIS:\Sites\$siteName" -Name "traceFailedRequestsLogging.enabled" -Value $frt.Enabled -ErrorAction Stop
+            Write-Host "Set traceFailedRequestsLogging.enabled on $siteName to $($frt.Enabled)" -ForegroundColor Green
+        }
+        if ($frt.LogDirectory) {
+            Set-ItemProperty "IIS:\Sites\$siteName" -Name "traceFailedRequestsLogging.directory" -Value $frt.LogDirectory -ErrorAction Stop
+            Write-Host "Set traceFailedRequestsLogging.directory on $siteName successfully" -ForegroundColor Green
+        }
+        if ($null -ne $frt.MaxTraceFiles) {
+            Set-ItemProperty "IIS:\Sites\$siteName" -Name "traceFailedRequestsLogging.maxLogFiles" -Value $frt.MaxTraceFiles -ErrorAction Stop
+            Write-Host "Set traceFailedRequestsLogging.maxLogFiles on $siteName to $($frt.MaxTraceFiles)" -ForegroundColor Green
+        }
+    } catch {
+        Write-Warning "Failed to configure Failed Request Tracing on Site '$siteName'. Check properties! Error: $_"
+    }
+}
+
 if ($Config.AdvancedSettings) {
     # Helper to deeply resolve JSON PSCustomObjects to Hashtables
     function Convert-ToHashtable {
