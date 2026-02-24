@@ -42,7 +42,12 @@
 
                 },
                 "PhysicalPathCredentialsLogon": "ClearText",
-                "PreloadEnabled": true
+                "PreloadEnabled": true,
+                "logFile.logFormat": "IIS",
+                "logFile.directory": "E:\\inetpub\\logs\\logfiles\\extranet",
+                "system.webServer/security/authentication/anonymousAuthentication.enabled": true,
+                "system.webServer/security/authentication/anonymousAuthentication.userName": "",
+                "system.webServer/security/authentication/windowsAuthentication.enabled": false
             }
         ],
         "WebApps": [

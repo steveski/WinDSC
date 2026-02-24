@@ -89,7 +89,19 @@ if ($advSettings) {
 
             Write-Verbose "Dynamically setting advanced property '$propName' on AppPool '$poolName'"
             try {
-                Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue -ErrorAction Stop
+                if ($propName -match "/") {
+                    # It's an explicit WebConfiguration path (like system.applicationHost/applicationPools/...)
+                    $lastDotIndex = $propName.LastIndexOf('.')
+                    if ($lastDotIndex -gt -1) {
+                        $filter = $propName.Substring(0, $lastDotIndex)
+                        $name = $propName.Substring($lastDotIndex + 1)
+                        Set-WebConfigurationProperty -PSPath "IIS:\" -Filter "$filter[@name='$poolName']" -Name $name -Value $propValue -ErrorAction Stop
+                    } else {
+                        Write-Warning "WebConfiguration property '$propName' must contain a dot separator for the property name."
+                    }
+                } else {
+                    Set-ItemProperty "IIS:\AppPools\$poolName" -Name $propName -Value $propValue -ErrorAction Stop
+                }
                 Write-Host "Set $propName on $poolName successfully" -ForegroundColor Green
             } catch {
                 Write-Warning "Failed to set property '$propName' on AppPool '$poolName'. Check property spelling/casing! Error: $_"

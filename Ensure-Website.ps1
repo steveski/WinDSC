@@ -162,7 +162,20 @@ if ($Config.AdvancedSettings) {
 
                     Write-Verbose "Dynamically setting advanced property '$propName' on Site '$siteName'"
                     try {
-                        Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue -ErrorAction Stop
+                        if ($propName -match "/") {
+                            # It's an explicit WebConfiguration path (like system.webServer/security/authentication/...)
+                            $lastDotIndex = $propName.LastIndexOf('.')
+                            if ($lastDotIndex -gt -1) {
+                                $filter = $propName.Substring(0, $lastDotIndex)
+                                $name = $propName.Substring($lastDotIndex + 1)
+                                Set-WebConfigurationProperty -PSPath "IIS:\" -Location $siteName -Filter $filter -Name $name -Value $propValue -ErrorAction Stop
+                            } else {
+                                Write-Warning "WebConfiguration property '$propName' must contain a dot separator for the property name."
+                            }
+                        } else {
+                            # It's a standard IIS Site item property
+                            Set-ItemProperty "IIS:\Sites\$siteName" -Name $propName -Value $propValue -ErrorAction Stop
+                        }
                         Write-Host "Set $propName on $siteName successfully" -ForegroundColor Green
                     } catch {
                         Write-Warning "Failed to set property '$propName' on Site '$siteName'. Check property spelling/casing! Error: $_"
