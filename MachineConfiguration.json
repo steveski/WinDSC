@@ -94,19 +94,20 @@
                     "Access": "FullControl"
                 }
             ],
-            "Share": {
-                "Name": "BusinessObjects-Share",
-                "Path": "c:\\BusinessObjects",
-                "Type": "Folder",
-                "Description": "Share-BusinessObjects",
-                "AdministrativeShare": false,
-                "Permissions": [
-                    {
-                        "AccountName": "Domain\\Administrator",
-                        "Access": "FullControl"
-                    }
-                ]
-            }
+            "Shares": [
+                {
+                    "Name": "BusinessObjects-Share",
+                    "Type": "Folder",
+                    "Description": "Share-BusinessObjects",
+                    "AdministrativeShare": false,
+                    "Permissions": [
+                        {
+                            "AccountName": "Domain\\Administrator",
+                            "Access": "FullControl"
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "Hosts": {

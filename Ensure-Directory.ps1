@@ -112,10 +112,14 @@ if ($Config.Permissions) {
     }
 }
 
-# 4. Ensure Share
-if ($Config.Share) {
-    if ($Config.Share.Name) {
-        $shareName = $Config.Share.Name
+# 4. Ensure Shares
+$sharesToProcess = @()
+if ($Config.Share) { $sharesToProcess += $Config.Share }
+if ($Config.Shares) { $sharesToProcess += $Config.Shares }
+
+foreach ($shareConfig in $sharesToProcess) {
+    if ($shareConfig.Name) {
+        $shareName = $shareConfig.Name
         Write-Verbose "Ensuring Share: $shareName"
         
         if (Get-SmbShare -Name $shareName -ErrorAction SilentlyContinue) {
@@ -125,11 +129,10 @@ if ($Config.Share) {
             if ($existing.Path -ne $Config.Path) {
                 Write-Warning "Share $shareName exists but points to different path ($($existing.Path)). Fix manually or rename."
             }
-            # Could update Description, etc. using Set-SmbShare
         } else {
             # Create new share
             try {
-                New-SmbShare -Name $shareName -Path $Config.Path -Description $Config.Share.Description -ErrorAction Stop | Out-Null
+                New-SmbShare -Name $shareName -Path $Config.Path -Description $shareConfig.Description -ErrorAction Stop | Out-Null
                 Write-Verbose "Created Share $shareName"
             } catch {
                 Write-Error "Failed to create share $shareName : $_"
@@ -137,8 +140,8 @@ if ($Config.Share) {
         }
 
         # Apply Share Permissions
-        if ($Config.Share.Permissions) {
-           foreach ($perm in $Config.Share.Permissions) {
+        if ($shareConfig.Permissions) {
+           foreach ($perm in $shareConfig.Permissions) {
                $access = $perm.Access
                
                # Handle terminology mismatch: NTFS uses "FullControl", SMB Uses "Full"
