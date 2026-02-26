@@ -79,6 +79,45 @@
                 ]
             }
         ]
+    },
+    {
+        "SiteName": "Site2-AppPoolIdentityAuth",
+        "ContentPath": "c:\\inetpub\\content\\site2",
+        "AppPool": "Pool1",
+        "Bindings": [
+            {
+                "Protocol": "http",
+                "Port": 80,
+                "HostHeader": "site2.local"
+            }
+        ],
+        "AdvancedSettings": [
+            {
+                "system.webServer/security/authentication/anonymousAuthentication.enabled": true,
+                "system.webServer/security/authentication/anonymousAuthentication.userName": "",
+                "system.webServer/security/authentication/windowsAuthentication.enabled": false
+            }
+        ]
+    },
+    {
+        "SiteName": "Site3-SpecificUserAuth",
+        "ContentPath": "c:\\inetpub\\content\\site3",
+        "AppPool": "Pool2",
+        "Bindings": [
+            {
+                "Protocol": "http",
+                "Port": 80,
+                "HostHeader": "site3.local"
+            }
+        ],
+        "AdvancedSettings": [
+            {
+                "system.webServer/security/authentication/anonymousAuthentication.enabled": true,
+                "system.webServer/security/authentication/anonymousAuthentication.userName": "Domain\\SpecificUser",
+                "system.webServer/security/authentication/anonymousAuthentication.password": "SuperSecret123!",
+                "system.webServer/security/authentication/windowsAuthentication.enabled": false
+            }
+        ]
     }],
     "Directories": [
         {
