@@ -38,6 +38,19 @@ Or pass a specific JSON environment file:
 
 ---
 
+## Exporting Existing Configurations
+
+If you need to extract the current active state of an IIS Website on a server and convert it back into the JSON schema format used by this engine, use the included metadata exporter:
+
+```powershell
+# Open an Elevated PowerShell prompt
+.\Export-IISConfiguration.ps1 -SiteName "Site1" -AsJson -OutputFile "C:\ExportedSite.json"
+```
+
+Omit the `-AsJson` flag to generate a raw, readable text dump instead.
+
+---
+
 ## Configuration File Schema Specification
 
 The `MachineConfiguration.json` is fundamentally a JSON Array containing configuration objects. The script will iterate through the array until it finds an object where the executing server's hostname exists inside `TargetMachineNames`.
