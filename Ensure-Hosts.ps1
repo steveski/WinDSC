@@ -30,11 +30,76 @@ if (-not (Test-Path $hostsFilePath)) {
 }
 
 # Ensure the config we received handles PowerShell's PSCustomObject gracefully
-$hostsObject = $Config
+$hostsObject = $Config.Hosts
+$hostsToRemove = if ($Config.HostsToRemove) { @($Config.HostsToRemove) } else { @() }
 
-# Iterate through the properties of the object (Keys are Hostnames, Values are IPs)
-foreach ($property in $hostsObject.PSObject.Properties) {
-    if ([string]::IsNullOrWhiteSpace($property.Name)) { continue }
+# Handle Explicit Removals First
+if ($hostsToRemove.Count -gt 0) {
+    Write-Verbose "Processing explicit Hosts removals..."
+    $hostsContent = Get-Content -Path $hostsFilePath
+    $contentModifiedGlobal = $false
+    $newContentGlobal = @()
+
+    foreach ($line in $hostsContent) {
+        $actualLine = $line
+        $commentIndex = $line.IndexOf('#')
+        if ($commentIndex -ge 0) {
+            $actualLine = $line.Substring(0, $commentIndex)
+        }
+        
+        $parts = $actualLine -split '\s+' | Where-Object { $_ -ne '' }
+        $lineKept = $true
+
+        if ($parts.Count -ge 2) {
+            $lineIp = $parts[0]
+            $lineHostNames = $parts[1..($parts.Count - 1)]
+            
+            $keptHostNames = @()
+            foreach ($name in $lineHostNames) {
+                if ($hostsToRemove -contains $name) {
+                    Write-Host "Removing explicit host entry: $name" -ForegroundColor DarkYellow
+                    $contentModifiedGlobal = $true
+                } else {
+                    $keptHostNames += $name
+                }
+            }
+            
+            if ($keptHostNames.Count -eq 0 -and $lineHostNames.Count -gt 0) {
+                # All hostnames removed, drop line
+                $lineKept = $false
+            } elseif ($keptHostNames.Count -lt $lineHostNames.Count) {
+                # Rebuild line with remaining hostnames
+                $replacementLine = "$lineIp"
+                foreach ($name in $keptHostNames) {
+                    $replacementLine += "`t$name"
+                }
+                if ($commentIndex -ge 0) {
+                     $replacementLine += "`t" + $line.Substring($commentIndex)
+                }
+                $newContentGlobal += $replacementLine
+                $lineKept = $false
+            }
+        }
+        
+        if ($lineKept) {
+            $newContentGlobal += $line
+        }
+    }
+    
+    if ($contentModifiedGlobal) {
+        try {
+            $newContentGlobal | Set-Content -Path $hostsFilePath -Force
+            Write-Verbose "Hosts file updated successfully after removals."
+        } catch {
+            Write-Error "Failed to update hosts file for removals. Error: $_"
+        }
+    }
+}
+
+if ($null -ne $hostsObject) {
+    # Iterate through the properties of the object (Keys are Hostnames, Values are IPs)
+    foreach ($property in $hostsObject.PSObject.Properties) {
+        if ([string]::IsNullOrWhiteSpace($property.Name)) { continue }
 
     $hostname = $property.Name
     $ip = $property.Value
@@ -118,4 +183,5 @@ foreach ($property in $hostsObject.PSObject.Properties) {
     } else {
         Write-Verbose "Host entry already correct."
     }
+}
 }

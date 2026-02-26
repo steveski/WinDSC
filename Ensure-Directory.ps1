@@ -71,39 +71,61 @@ if ($Config.Attributes) {
 }
 
 # 3. Apply Permissions (ACLs)
-if ($Config.Permissions) {
+if ($Config.Permissions -or $Config.RemovePermissions) {
     $acl = Get-Acl -Path $Config.Path
     $aclChanged = $false
 
-    foreach ($perm in $Config.Permissions) {
-        # Default to Allow if not specified
-        $type = if ($perm.Type) { $perm.Type } else { "Allow" }
-        # Default to ContainerInherit, ObjectInherit if not specified (standard for folders)
-        $inheritance = if ($perm.Inheritance) { $perm.Inheritance } else { "ContainerInherit, ObjectInherit" }
-        $propagation = if ($perm.Propagation) { $perm.Propagation } else { "None" }
-
-        try {
-            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                $perm.AccountName,
-                $perm.Access,
-                $inheritance,
-                $propagation,
-                $type
-            )
-            
-            # Check if this rule is already present efficiently is hard, so we assume 'SetAccessRule' 
-            # which adds or modifies. To be purely idempotent we would check specific rules.
-            # Here we just AddAccessRule. To reset/ensure EXACTLY, we might need Purge, but 
-            # "Ensure" usually implies "Make sure this exists", not "Remove everything else".
-            # Users request: "If something needs to be changed... ensure data like contents... are not destroyed."
-            # So generic "Add/Update" is safer than "Replace All".
-            
-            $acl.AddAccessRule($accessRule) 
-            $aclChanged = $true
-            Write-Verbose "Added/Updated permission for $($perm.AccountName)"
+    if ($Config.RemovePermissions) {
+        foreach ($accToRemove in $Config.RemovePermissions) {
+            $rules = $acl.Access | Where-Object { 
+                $_.IdentityReference.Value -eq $accToRemove -or 
+                $_.IdentityReference.Value -match "\\$accToRemove`$" 
+            }
+            if ($rules) {
+                foreach ($rule in $rules) {
+                    # Needs specific cast back to FileSystemAccessRule
+                    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                        $rule.IdentityReference,
+                        $rule.FileSystemRights,
+                        $rule.InheritanceFlags,
+                        $rule.PropagationFlags,
+                        $rule.AccessControlType
+                    )
+                    if ($acl.RemoveAccessRule($accessRule)) {
+                        $aclChanged = $true
+                    }
+                }
+                Write-Host "Removed explicit NTFS permissions for $accToRemove" -ForegroundColor DarkYellow
+            } else {
+                Write-Verbose "No explicit NTFS permissions found to remove for $accToRemove"
+            }
         }
-        catch {
-            Write-Warning "Failed to create access rule for $($perm.AccountName): $_"
+    }
+
+    if ($Config.Permissions) {
+        foreach ($perm in $Config.Permissions) {
+            # Default to Allow if not specified
+            $type = if ($perm.Type) { $perm.Type } else { "Allow" }
+            # Default to ContainerInherit, ObjectInherit if not specified (standard for folders)
+            $inheritance = if ($perm.Inheritance) { $perm.Inheritance } else { "ContainerInherit, ObjectInherit" }
+            $propagation = if ($perm.Propagation) { $perm.Propagation } else { "None" }
+    
+            try {
+                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    $perm.AccountName,
+                    $perm.Access,
+                    $inheritance,
+                    $propagation,
+                    $type
+                )
+                
+                $acl.AddAccessRule($accessRule) 
+                $aclChanged = $true
+                Write-Verbose "Added/Updated permission for $($perm.AccountName)"
+            }
+            catch {
+                Write-Warning "Failed to create access rule for $($perm.AccountName): $_"
+            }
         }
     }
 
@@ -140,6 +162,18 @@ foreach ($shareConfig in $sharesToProcess) {
         }
 
         # Apply Share Permissions
+        if ($shareConfig.RemovePermissions) {
+            foreach ($accToRemove in $shareConfig.RemovePermissions) {
+                Write-Verbose "Removing explicit Share permissions for $accToRemove"
+                try {
+                    Revoke-SmbShareAccess -Name $shareName -AccountName $accToRemove -Force | Out-Null
+                    Write-Host "Removed explicit Share Access for $accToRemove on $shareName" -ForegroundColor DarkYellow
+                } catch {
+                    Write-Warning "Failed to revoke share access for $($accToRemove): $_"
+                }
+            }
+        }
+
         if ($shareConfig.Permissions) {
            foreach ($perm in $shareConfig.Permissions) {
                $access = $perm.Access

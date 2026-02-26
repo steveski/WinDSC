@@ -61,6 +61,10 @@ Key-Value pairs defining local DNS overrides appended to `%windir%\system32\driv
 - Keys: The Hostname (e.g., `"extranet.local.tv"`)
 - Values: The IPv4 Address (e.g., `"127.0.0.1"`)
 
+### `HostsToRemove` (Array of Strings)
+List of stale hostnames to actively rip out of the system `hosts` file.
+- e.g., `["old.extranet.com"]`
+
 ### `EventLogs` (Object)
 Creates custom Windows Event Log Sources primarily used by application backends.
 - Key: Custom Source Name (e.g., `"MyCustomAppSource"`)
@@ -77,13 +81,14 @@ Manages standard FileSystem folders, attributes, explicit NTFS Security ACLs, an
   - `"System"` (Bool)
 - `"Permissions"` (Array of Objects) - **NTFS Local File System Security:**
   - `"AccountName"` (String) - Example: `"Administrators"`, `"Domain\User"`, `"IUSR"`.
-  - `"Access"` (String) - A standard FileSystemRights Enum. Valid Options:
+    - `"Access"` (String) - A standard FileSystemRights Enum. Valid Options:
     - `"FullControl"`
     - `"Modify"`
     - `"ReadAndExecute"`
     - `"ListDirectory"`
     - `"Read"`
     - `"Write"`
+- `"RemovePermissions"` (Array of Strings) - Stale identities to actively revoke. E.g., `["Domain\\OldUser"]`
 - `"Shares"` (Array of Objects) - **SMB File Sharing:**
   - Multiple shares can be hosted over the same directory.
   - `"Name"` (String) - The exposed network share name.
@@ -97,6 +102,7 @@ Manages standard FileSystem folders, attributes, explicit NTFS Security ACLs, an
       - `"Change"` (Read/Write without ownership)
       - `"Read"` (Read-Only)
       - `"Custom"`
+  - `"RemovePermissions"` (Array of Strings) - Stale identities to actively revoke. E.g., `["Domain\\OldUser"]`
 
 ### `IISAppPools` (Array of Objects)
 Dynamically manages discrete AppPools.

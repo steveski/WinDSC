@@ -88,6 +88,9 @@
                 "Hidden": false,
                 "System": false
             },
+            "RemovePermissions": [
+                "Domain\\OldUser"
+            ],
             "Permissions": [
                 {
                     "AccountName": "Administrators",
@@ -100,6 +103,9 @@
                     "Type": "Folder",
                     "Description": "Share-BusinessObjects",
                     "AdministrativeShare": false,
+                    "RemovePermissions": [
+                        "Domain\\OldUser"
+                    ],
                     "Permissions": [
                         {
                             "AccountName": "Domain\\Administrator",
@@ -109,6 +115,9 @@
                 }
             ]
         }
+    ],
+    "HostsToRemove": [
+        "old.site1.local"
     ],
     "Hosts": {
         "site1.local": "127.0.0.1",
