@@ -85,6 +85,16 @@ stages:
               targetPath: '$(workingDirectory)'
 
           - task: PowerShell@2
+            displayName: 'Replace JSON configuration pipeline tokens'
+            inputs:
+              targetType: 'filePath'
+              filePath: '$(workingDirectory)/Convert-Tokens.ps1'
+              arguments: '-TargetPath "$(workingDirectory)/MachineConfiguration.json"'
+            env:
+              SubstMachineKeyValidationKey: $(SubstMachineKeyValidationKey)
+              SubstMachineKeyDecryptionKey: $(SubstMachineKeyDecryptionKey)
+
+          - task: PowerShell@2
             displayName: 'Apply Desired State Configuration'
             inputs:
               targetType: 'filePath'

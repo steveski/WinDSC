@@ -56,8 +56,8 @@
                 "system.webServer/security/authentication/windowsAuthentication.enabled": false,
                 "system.web/machineKey/validation": "SHA1",
                 "system.web/machineKey/decryption": "Auto",
-                "system.web/machineKey/validationKey": "#{MACHINE_KEY_VALIDATION_KEY}#",
-                "system.web/machineKey/decryptionKey": "#{MACHINE_KEY_DECRYPTION_KEY}#"
+                "system.web/machineKey/validationKey": "#{SubstMachineKeyValidationKey}#",
+                "system.web/machineKey/decryptionKey": "#{SubstMachineKeyDecryptionKey}#"
             }
         ],
         "WebApps": [
