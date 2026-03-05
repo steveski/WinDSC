@@ -1,0 +1,96 @@
+trigger: none
+
+parameters:
+- name: environment
+  type: string
+  default: "Dev"
+  
+- name: serverGroup
+  type: string
+  default: "internal"
+
+  
+- name: publishPath
+  type: string
+  default: '$(Build.ArtifactStagingDirectory)/Publish'
+  
+#######################
+variables:
+- name: ArtifactName
+  value: 'Server DSC Scripts'
+
+- name: DevOpsProjectname
+  value: 'Some Cool and Groovy Project'
+
+- name: buildDefinitionNmaeToDeploy
+  value: ''
+
+#######################
+stages:
+- stage: DeployArtifacts
+  pool:
+    name: common
+  jobs:
+  - job: Generate
+    displayName: 'Generate Artifacts'
+
+    steps:
+    - task: PowerShell@2
+      displayName: 'Package scripts and configs'
+      inputs:
+        targetType: 'inline'
+        script: |
+          New-Item -ItemType Directory -Path '${{ parameters.publishPath }}' -Force
+          Copy-Item -Path '$(Build.SourcesDirectory)/Apply-DesiredStateConfiguration.ps1' -Destination '${{ parameters.publishPath }}' -Force
+          Copy-Item -Path '$(Build.SourcesDirectory)/Ensure-*.ps1' -Destination '${{ parameters.publishPath }}' -Force
+          Copy-Item -Path '$(Build.SourcesDirectory)/MachineConfiguration.json' -Destination '${{ parameters.publishPath }}' -Recurse -Force
+  
+    - task: PublishPipelineArtifact@2
+      displayName: 'Publish Build Artifacts'
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+      inputs:
+        path: '${{ parameters.publishPath }}'
+        artifactName: $(ArtifactName)
+
+- stage: Deploy
+  variables:
+    - group: ServiceAccounts${{ parameters.environment }}${{ parameters.serverGroup }}
+    - workingDirectory: '$(Pipeline.Workspace)/$(Build.DefinitionName)'
+  jobs:
+  - deployment: Deploy_${{ parameters.environment }}_${{ parameters.serverGroup }}
+    workspace:
+      clean: all
+    displayName: 'Deploy ${{ parameters.environment }}-${{ parameters.serverGroup }}'
+    conditions: succeeded()
+    environment:
+      name: '${{ parameters.environment }}-${{ parameters.serverGroup }}'
+      resourceType: VirtualMachine
+    strategy:
+      rolling:
+        maxParallel: 100%
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Build Artifacts'
+            inputs:
+              project: '$(DevOpsProjectname)'
+              buildType: 'specific'
+              buildId: '$(Build.BuildId)'
+              definition: '$(buildDefinitionNmaeToDeploy)'
+              specificBuildWithTriggering: true
+              buildVersionToDownload: 'specific'
+              allowPartiallySucceededBuilds: false
+              allowFailedBuilds: false
+              artifactName: $(ArtifactName)
+              targetPath: '$(workingDirectory)'
+
+          - task: PowerShell@2
+            displayName: 'Apply Desired State Configuration'
+            inputs:
+              targetType: 'filePath'
+              filePath: '$(workingDirectory)/Apply-DesiredStateConfiguration.ps1'
+              workingDirectory: '$(workingDirectory)'
+              arguments: >
+                -ConfigurationPath "$(workingDirectory)/MachineConfiguration.json"
+                -SvcAccount "$(SvcAccountDomain)\$(SvcAccountName)"
+                -SvcAccountPwd "$(SvcAccountPwd)"
