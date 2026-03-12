@@ -85,6 +85,63 @@ stages:
               targetPath: '$(workingDirectory)'
 
           - task: PowerShell@2
+            displayName: 'Download JSON SecureFiles Dynamically via API'
+            inputs:
+              targetType: 'inline'
+              workingDirectory: '$(workingDirectory)'
+              script: |
+                $ErrorActionPreference = "Stop"
+                $certsDir = "Certificates"
+                if (-not (Test-Path $certsDir)) { New-Item -ItemType Directory -Path $certsDir | Out-Null }
+                
+                $configData = Get-Content "MachineConfiguration.json" -Raw | ConvertFrom-Json
+                $currentMachine = $env:COMPUTERNAME
+                
+                $orgUrl = $env:SYSTEM_TEAMFOUNDATIONCOLLECTIONURI
+                $projectId = $env:SYSTEM_TEAMPROJECTID
+                $token = $env:SYSTEM_ACCESSTOKEN
+                
+                if (-not $token) { 
+                    Write-Error "System.AccessToken is missing. Ensure you map SYSTEM_ACCESSTOKEN: `$(System.AccessToken) and 'Allow scripts to access OAuth token' is enabled." 
+                }
+                
+                $headers = @{ Authorization = "Bearer $token" }
+                
+                foreach ($block in $configData) {
+                    if ($block.TargetMachineNames -contains $currentMachine -and $block.Certificates) {
+                        foreach ($cert in $block.Certificates) {
+                            $secureFile = $cert.SecureFile
+                            Write-Host "Resolving Secure File ID for '$secureFile'..." -ForegroundColor Cyan
+                            
+                            $lookupUrl = "$orgUrl$projectId/_apis/distributedtask/securefiles?api-version=5.0-preview.1&namePattern=$secureFile"
+                            $lookupResponse = Invoke-RestMethod -Uri $lookupUrl -Headers $headers -Method Get
+                            
+                            if ($lookupResponse.count -eq 0) {
+                                Write-Error "Secure File '$secureFile' not found in Azure DevOps project."
+                            }
+                            
+                            $fileId = $lookupResponse.value[0].id
+                            
+                            Write-Host "Downloading Secure File content to $certsDir..."
+                            $downloadUrl = "$orgUrl$projectId/_apis/distributedtask/securefiles/$fileId`?api-version=5.0-preview.1&download=true"
+                            $targetPath = Join-Path $certsDir $secureFile
+                            Invoke-RestMethod -Uri $downloadUrl -Headers $headers -Method Get -OutFile $targetPath
+                            Write-Host "Successfully downloaded to $targetPath" -ForegroundColor Green
+                            
+                            # Dynamically inject the specific certificate password as an environment variable 
+                            # for the downstream script downstream commands to inherit securely.
+                            $passKey = $cert.PasswordKey
+                            if ($passKey) {
+                                Write-Host "Injecting mapped Pipeline Password Secret '$passKey' into downstream environment..." -ForegroundColor Yellow
+                                Write-Host "##vso[task.setvariable variable=$passKey;issecret=true]`$($passKey)"
+                            }
+                        }
+                    }
+                }
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+          - task: PowerShell@2
             displayName: 'Replace JSON configuration pipeline tokens'
             inputs:
               targetType: 'filePath'
@@ -104,3 +161,17 @@ stages:
                 -ConfigurationPath "$(workingDirectory)/MachineConfiguration.json"
                 -SvcAccount "$(SvcAccountDomain)\$(SvcAccountName)"
                 -SvcAccountPwd "$(SvcAccountPwd)"
+
+          - task: PowerShell@2
+            displayName: 'Clean up Certificates Folder'
+            condition: always()
+            inputs:
+              targetType: 'inline'
+              workingDirectory: '$(workingDirectory)'
+              script: |
+                $certsDir = "Certificates"
+                if (Test-Path $certsDir) {
+                    Write-Host "Cleaning up local Certificates download folder securely..." -ForegroundColor Cyan
+                    Remove-Item -Path $certsDir -Recurse -Force
+                    Write-Host "Cleanup complete." -ForegroundColor Green
+                }

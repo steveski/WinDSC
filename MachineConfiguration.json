@@ -170,6 +170,16 @@
     ],
     "DisabledFeatures": [
     ],
+    "Certificates": [
+        {
+            "SecureFile": "TheApp_Dev.pfx",
+            "PasswordKey": "TheApp_Dev",
+            "ManageForAccount": "Computer",
+            "ReadAccessAccounts": [
+                "#{SvcAccountDomain}#\\#{SvcAccountName}#"
+            ]
+        }
+    ],
     "EventLogs": {
         "MyCustomAppSource": {
             "LogName": "SteveTestLog",

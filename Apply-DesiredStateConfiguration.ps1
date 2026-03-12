@@ -132,6 +132,12 @@ foreach ($configBlock in $configData) {
             Write-Host "Processing Event Logs..." -ForegroundColor Cyan
             .\Ensure-EventLog.ps1 -Config $configBlock.EventLogs
         }
+
+        # 6. Apply Certificates
+        if ($configBlock.Certificates) {
+            Write-Host "Processing Certificates..." -ForegroundColor Cyan
+            .\Ensure-Certs.ps1 -Config $configBlock.Certificates
+        }
     }
 }
 
