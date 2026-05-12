@@ -16,7 +16,14 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $true)]
-    [object]$Config
+    [object]$Config,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$SvcAccount,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$SvcAccountPwd
+
 )
 
 Import-Module WebAdministration -ErrorAction SilentlyContinue
@@ -37,6 +44,12 @@ $changes = $false
 if ($pool.managedRuntimeVersion -ne $Config.ManagedRuntimeVersion) {
     Write-Verbose "Setting managedRuntimeVersion to $($Config.ManagedRuntimeVersion)"
     $pool.managedRuntimeVersion = $Config.ManagedRuntimeVersion
+    $changes = $true
+}
+
+if ($pool.enable32BitAppOnWin64 -ne $Config.Enable32BitAppOnWin64) {
+    Write-Verbose "Setting enable32BitAppOnWin64 to $($Config.Enable32BitAppOnWin64)"
+    $pool.enable32BitAppOnWin64 = $Config.Enable32BitAppOnWin64
     $changes = $true
 }
 
@@ -109,3 +122,12 @@ if ($advSettings) {
         }
     }
 }
+
+# 4 Set AppPool Identity if provided
+$IdentityName = $Config.IdentityName
+if (($SvcAccount -eq $IdentityName) -and (Test-Path "IIS:\AppPools\$poolName")) {
+    Write-Host "Setting App Pool Identity - $IdentityName - $SvcAccount - $SvcAccountPwd - poolName - $poolName"
+    Set-ItemProperty -Path "IIS:\AppPools\$poolName" -Name processModel -Value @{ userName = "$SvcAccount"; password = "$SvcAccountPwd"; identityType = 3 }
+
+}
+
