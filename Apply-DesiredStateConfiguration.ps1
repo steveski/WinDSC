@@ -19,7 +19,15 @@
 [CmdletBinding()]
 param (
     [string]$ConfigurationPath = ".\MachineConfiguration.json",
+    
+    [Parameter(Mandatory = $false)]
+    [string]$SvcAccount,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$SvcAccountPwd,
+
     [switch]$Help
+
 )
 
 function Show-Usage {
@@ -109,7 +117,7 @@ foreach ($configBlock in $configData) {
         if ($configBlock.IISAppPools) {
             Write-Host "Processing AppPools..." -ForegroundColor Cyan
             foreach ($pool in $configBlock.IISAppPools) {
-                .\Ensure-AppPool.ps1 -Config $pool
+                .\Ensure-AppPool.ps1 -Config $pool -SvcAccount $SvcAccount -SvcAccountPwd $SvcAccountPwd
             }
         }
 
