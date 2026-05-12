@@ -16,6 +16,39 @@ Import-Module WebAdministration -ErrorAction SilentlyContinue
 $siteName = $Config.SiteName
 Write-Verbose "Ensuring Website: $siteName"
 
+
+function Set-MachineKeys {
+    param (
+        [string]$SitePath,
+        [object]$MachineKeyConfig
+    )
+
+    foreach ($entry in $MachineKeyConfig) {
+        if ($entry.Section -and $entry.Property) {
+            $filter = $entry.Section
+            $name = $entry.Property
+            $propValue = $entry.Value
+
+            Write-Verbose "Setting MachineKey property '$name' in section '$filter' for '$siteName'"
+            try {
+                # Note: MachineKey settings usually need to be applied at the site/app level 
+                # using the -Location parameter to update the web.config
+                Set-WebConfigurationProperty -PSPath "$SitePath" `
+                    -Filter $filter `
+                    -Name $name `
+                    -Value $propValue `
+                    -ErrorAction Stop
+
+                Write-Host "Set MachineKey $name on $appName successfully" -ForegroundColor Green
+            } catch {
+                Write-Warning "Failed to set MachineKey '$name' on '$appName'. Error: $_"
+            }
+        }
+    }
+
+}
+
+
 # 1. Ensure Website Exists
 if (-not (Test-Path "IIS:\Sites\$siteName")) {
     Write-Verbose "Website does not exist. Creating: $siteName"
@@ -111,14 +144,14 @@ if ($existingBindings) {
         }
 
         # If it wasn't in the config, remove it
-        if (-not $found) {
-            Write-Verbose ("Removing unspecified Binding: {0} {1}:{2}" -f $exProtocol, $exHostHeader, $exPort)
-            Remove-WebBinding -Name $siteName -Protocol $exProtocol -Port $exPort -HostHeader $exHostHeader
-        }
+        # if (-not $found) {
+        #     Write-Host ("Removing unspecified Binding: {0} {1}:{2}" -f $exProtocol, $exHostHeader, $exPort)
+        #     Remove-WebBinding -Name $siteName -Protocol $exProtocol -Port $exPort -HostHeader $exHostHeader
+        # }
     }
 }
 
-# 2.5 Failed Request Tracing
+# 3 Failed Request Tracing
 if ($Config.FailedRequestTracing) {
     $frt = $Config.FailedRequestTracing
     Write-Verbose "Configuring Failed Request Tracing for Site '$siteName'"
@@ -140,6 +173,7 @@ if ($Config.FailedRequestTracing) {
     }
 }
 
+# 4 Advanced Settings
 if ($Config.AdvancedSettings) {
     # Helper to deeply resolve JSON PSCustomObjects to Hashtables
     function Convert-ToHashtable {
@@ -208,7 +242,16 @@ if ($Config.AdvancedSettings) {
     }
 }
 
-# 4. Web Applications
+# 5 Machine Keys
+if ($Config.MachineKeys) {
+    # Ensure it's treated as a list/array
+    $machineKeyList = if ($Config.MachineKeys -is [array]) { $Config.MachineKeys } else { @($Config.MachineKeys) }
+
+    Set-MachineKeys -SitePath "IIS:\Sites\$siteName" -MachineKeyConfig $machineKeyList
+
+}
+
+# 6. Web Applications
 if ($Config.WebApps) {
     foreach ($appConfig in $Config.WebApps) {
         $appName = $appConfig.Name
@@ -283,5 +326,15 @@ if ($Config.WebApps) {
                 }
             }
         }
+
+        if ($appConfig.MachineKeys) {
+            # Ensure it's treated as a list/array
+            $appMachineKeyList = if ($appConfig.MachineKeys -is [array]) { $appConfig.MachineKeys } else { @($appConfig.MachineKeys) }
+
+            Set-MachineKeys -SitePath "$fullPath" -MachineKeyConfig $appMachineKeyList
+
+        }
+        
     }
 }
+
