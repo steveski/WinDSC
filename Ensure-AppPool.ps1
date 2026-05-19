@@ -31,7 +31,17 @@ Import-Module WebAdministration -ErrorAction SilentlyContinue
 $poolName = $Config.Name
 Write-Verbose "Ensuring AppPool: $poolName"
 
-# 1. Ensure AppPool Exists
+$ensure = if ($Config.Ensure) { $Config.Ensure } else { "Present" }
+
+# 1. Ensure AppPool Exists or Absent
+if ($ensure -eq "Absent") {
+    if (Test-Path "IIS:\AppPools\$poolName") {
+        Write-Verbose "Removing AppPool: $poolName"
+        Remove-WebAppPool -Name $poolName
+    }
+    return
+}
+
 if (-not (Test-Path "IIS:\AppPools\$poolName")) {
     Write-Verbose "AppPool does not exist. Creating: $poolName"
     New-WebAppPool -Name $poolName

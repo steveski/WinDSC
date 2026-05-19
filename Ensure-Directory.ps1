@@ -24,12 +24,22 @@ param (
 
 Write-Verbose "Ensuring Directory: $($Config.Path)"
 
-# 1. Ensure Directory Exists
-if (-not (Test-Path -Path $Config.Path)) {
-    Write-Verbose "Directory does not exist. Creating: $($Config.Path)"
-    New-Item -Path $Config.Path -ItemType Directory -Force | Out-Null
+$ensureDir = if ($Config.Ensure) { $Config.Ensure } else { "Present" }
+
+# 1. Ensure Directory Exists or Absent
+if ($ensureDir -eq "Absent") {
+    if (Test-Path -Path $Config.Path) {
+        Write-Verbose "Directory exists and Ensure is Absent. Removing: $($Config.Path)"
+        Remove-Item -Path $Config.Path -Recurse -Force
+    }
+    return # Skip the rest of the configuration
 } else {
-    Write-Verbose "Directory already exists: $($Config.Path)"
+    if (-not (Test-Path -Path $Config.Path)) {
+        Write-Verbose "Directory does not exist. Creating: $($Config.Path)"
+        New-Item -Path $Config.Path -ItemType Directory -Force | Out-Null
+    } else {
+        Write-Verbose "Directory already exists: $($Config.Path)"
+    }
 }
 
 # 2. Apply Attributes
@@ -71,15 +81,18 @@ if ($Config.Attributes) {
 }
 
 # 3. Apply Permissions (ACLs)
-if ($Config.Permissions -or $Config.RemovePermissions) {
+if ($Config.Permissions) {
     $acl = Get-Acl -Path $Config.Path
     $aclChanged = $false
 
-    if ($Config.RemovePermissions) {
-        foreach ($accToRemove in $Config.RemovePermissions) {
+    foreach ($perm in $Config.Permissions) {
+        $acc = $perm.AccountName
+        $ensurePerm = if ($perm.Ensure) { $perm.Ensure } else { "Present" }
+
+        if ($ensurePerm -eq "Absent") {
             $rules = $acl.Access | Where-Object { 
-                $_.IdentityReference.Value -eq $accToRemove -or 
-                $_.IdentityReference.Value -match "\\$accToRemove`$" 
+                $_.IdentityReference.Value -eq $acc -or 
+                $_.IdentityReference.Value -match "\\$acc`$" 
             }
             if ($rules) {
                 foreach ($rule in $rules) {
@@ -95,15 +108,11 @@ if ($Config.Permissions -or $Config.RemovePermissions) {
                         $aclChanged = $true
                     }
                 }
-                Write-Host "Removed explicit NTFS permissions for $accToRemove" -ForegroundColor DarkYellow
+                Write-Host "Removed explicit NTFS permissions for $acc" -ForegroundColor DarkYellow
             } else {
-                Write-Verbose "No explicit NTFS permissions found to remove for $accToRemove"
+                Write-Verbose "No explicit NTFS permissions found to remove for $acc"
             }
-        }
-    }
-
-    if ($Config.Permissions) {
-        foreach ($perm in $Config.Permissions) {
+        } else {
             # Default to Allow if not specified
             $type = if ($perm.Type) { $perm.Type } else { "Allow" }
             # Default to ContainerInherit, ObjectInherit if not specified (standard for folders)
@@ -112,7 +121,7 @@ if ($Config.Permissions -or $Config.RemovePermissions) {
     
             try {
                 $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                    $perm.AccountName,
+                    $acc,
                     $perm.Access,
                     $inheritance,
                     $propagation,
@@ -121,10 +130,10 @@ if ($Config.Permissions -or $Config.RemovePermissions) {
                 
                 $acl.AddAccessRule($accessRule) 
                 $aclChanged = $true
-                Write-Verbose "Added/Updated permission for $($perm.AccountName)"
+                Write-Verbose "Added/Updated permission for $acc"
             }
             catch {
-                Write-Warning "Failed to create access rule for $($perm.AccountName): $_"
+                Write-Warning "Failed to create access rule for $acc: $_"
             }
         }
     }
@@ -142,8 +151,18 @@ if ($Config.Shares) { $sharesToProcess += $Config.Shares }
 foreach ($shareConfig in $sharesToProcess) {
     if ($shareConfig.Name) {
         $shareName = $shareConfig.Name
+        $ensureShare = if ($shareConfig.Ensure) { $shareConfig.Ensure } else { "Present" }
         Write-Verbose "Ensuring Share: $shareName"
         
+        if ($ensureShare -eq "Absent") {
+            if (Get-SmbShare -Name $shareName -ErrorAction SilentlyContinue) {
+                Write-Verbose "Removing Share: $shareName"
+                Remove-SmbShare -Name $shareName -Force
+                Write-Host "Removed Share: $shareName" -ForegroundColor DarkYellow
+            }
+            continue
+        }
+
         if (Get-SmbShare -Name $shareName -ErrorAction SilentlyContinue) {
             # Share exists, update if needed?
             # Basic check: Ensure path matches
@@ -162,31 +181,32 @@ foreach ($shareConfig in $sharesToProcess) {
         }
 
         # Apply Share Permissions
-        if ($shareConfig.RemovePermissions) {
-            foreach ($accToRemove in $shareConfig.RemovePermissions) {
-                Write-Verbose "Removing explicit Share permissions for $accToRemove"
-                try {
-                    Revoke-SmbShareAccess -Name $shareName -AccountName $accToRemove -Force | Out-Null
-                    Write-Host "Removed explicit Share Access for $accToRemove on $shareName" -ForegroundColor DarkYellow
-                } catch {
-                    Write-Warning "Failed to revoke share access for $($accToRemove): $_"
-                }
-            }
-        }
-
         if ($shareConfig.Permissions) {
            foreach ($perm in $shareConfig.Permissions) {
-               $access = $perm.Access
-               
-               # Handle terminology mismatch: NTFS uses "FullControl", SMB Uses "Full"
-               if ($access -eq "FullControl") { $access = "Full" }
+               $acc = $perm.AccountName
+               $ensurePerm = if ($perm.Ensure) { $perm.Ensure } else { "Present" }
 
-               # Grant-SmbShareAccess handles adding/updating
-               try {
-                   Grant-SmbShareAccess -Name $shareName -AccountName $perm.AccountName -AccessRight $access -Force | Out-Null
-                   Write-Verbose "Granted Share Access: $access to $($perm.AccountName) on $shareName"
-               } catch {
-                   Write-Warning "Failed to grant share access for $($perm.AccountName): $_"
+               if ($ensurePerm -eq "Absent") {
+                   Write-Verbose "Removing explicit Share permissions for $acc"
+                   try {
+                       Revoke-SmbShareAccess -Name $shareName -AccountName $acc -Force | Out-Null
+                       Write-Host "Removed explicit Share Access for $acc on $shareName" -ForegroundColor DarkYellow
+                   } catch {
+                       Write-Warning "Failed to revoke share access for $acc: $_"
+                   }
+               } else {
+                   $access = $perm.Access
+                   
+                   # Handle terminology mismatch: NTFS uses "FullControl", SMB Uses "Full"
+                   if ($access -eq "FullControl") { $access = "Full" }
+
+                   # Grant-SmbShareAccess handles adding/updating
+                   try {
+                       Grant-SmbShareAccess -Name $shareName -AccountName $acc -AccessRight $access -Force | Out-Null
+                       Write-Verbose "Granted Share Access: $access to $acc on $shareName"
+                   } catch {
+                       Write-Warning "Failed to grant share access for $acc: $_"
+                   }
                }
            }
         }

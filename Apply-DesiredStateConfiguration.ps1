@@ -130,7 +130,7 @@ foreach ($configBlock in $configData) {
         }
 
         # 4. Apply Hosts file entries
-        if ($configBlock.Hosts -or $configBlock.HostsToRemove) {
+        if ($configBlock.Hosts) {
             Write-Host "Processing Hosts file entries..." -ForegroundColor Cyan
             .\Ensure-Hosts.ps1 -Config $configBlock
         }

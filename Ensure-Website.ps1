@@ -50,6 +50,15 @@ function Set-MachineKeys {
 
 
 # 1. Ensure Website Exists
+$ensureSite = if ($Config.Ensure) { $Config.Ensure } else { "Present" }
+if ($ensureSite -eq "Absent") {
+    if (Test-Path "IIS:\Sites\$siteName") {
+        Write-Verbose "Removing Website: $siteName"
+        Remove-Website -Name $siteName
+    }
+    return
+}
+
 if (-not (Test-Path "IIS:\Sites\$siteName")) {
     Write-Verbose "Website does not exist. Creating: $siteName"
     
@@ -257,8 +266,17 @@ if ($Config.WebApps) {
         $appName = $appConfig.Name
         $appPath = "/$appName" # IIS Path format
         $fullPath = "IIS:\Sites\$siteName$appPath"
+        $ensureApp = if ($appConfig.Ensure) { $appConfig.Ensure } else { "Present" }
         
         Write-Verbose "Ensuring WebApp: $appName on $siteName"
+
+        if ($ensureApp -eq "Absent") {
+            if (Test-Path $fullPath) {
+                Write-Verbose "Removing WebApp $appName"
+                Remove-WebApplication -Name $appName -Site $siteName
+            }
+            continue
+        }
 
         if (-not (Test-Path $appConfig.ContentPath)) { New-Item -Path $appConfig.ContentPath -ItemType Directory -Force | Out-Null }
 

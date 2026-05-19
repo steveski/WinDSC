@@ -57,6 +57,11 @@ The `MachineConfiguration.json` is fundamentally a JSON Array containing configu
 
 *Below is a comprehensive schema definition of all configurable elements available inside a configuration object.*
 
+### `Ensure` (String) Pattern
+Throughout the schema, many top-level objects (e.g., AppPools, Websites, Directories, EventLogs, Certificates) and sub-items (like Hosts or Permissions) support an `"Ensure"` property.
+- `"Present"` (default) ensures the resource is created or updated to match the desired state.
+- `"Absent"` ensures the resource is actively removed from the system. When `"Ensure": "Absent"`, only identifying properties (like `Name` or `Thumbprint`) are typically required.
+
 ### `TargetMachineNames` (Array of Strings)
 List of hostnames where this configuration block should apply.
 - e.g., `["Server01Prod", "Server02Prod"]`
@@ -69,14 +74,11 @@ Sets the Windows OS Time Zone.
 Manages ServerManager Windows Features/Roles actively.
 - Valid values are canonical Windows Feature names (e.g., `"Web-Static-Content"`, `"DHCP"`, `"Web-WebServer"`).
 
-### `Hosts` (Object)
-Key-Value pairs defining local DNS overrides appended to `%windir%\system32\drivers\etc\hosts`.
-- Keys: The Hostname (e.g., `"extranet.local.tv"`)
-- Values: The IPv4 Address (e.g., `"127.0.0.1"`)
-
-### `HostsToRemove` (Array of Strings)
-List of stale hostnames to actively rip out of the system `hosts` file.
-- e.g., `["old.extranet.com"]`
+### `Hosts` (Array of Objects)
+Defines local DNS overrides appended to or removed from `%windir%\system32\drivers\etc\hosts`.
+- `"HostName"` (String) - The Hostname (e.g., `"extranet.local.tv"`)
+- `"IpAddress"` (String) - The IPv4 Address (e.g., `"127.0.0.1"`)
+- `"Ensure"` (String) - `"Present"` (default) to add/update, `"Absent"` to actively rip out of the system `hosts` file.
 
 ### `EventLogs` (Object)
 Creates custom Windows Event Log Sources primarily used by application backends.
@@ -94,14 +96,14 @@ Manages standard FileSystem folders, attributes, explicit NTFS Security ACLs, an
   - `"System"` (Bool)
 - `"Permissions"` (Array of Objects) - **NTFS Local File System Security:**
   - `"AccountName"` (String) - Example: `"Administrators"`, `"Domain\User"`, `"IUSR"`.
-    - `"Access"` (String) - A standard FileSystemRights Enum. Valid Options:
+  - `"Access"` (String) - A standard FileSystemRights Enum. Valid Options:
     - `"FullControl"`
     - `"Modify"`
     - `"ReadAndExecute"`
     - `"ListDirectory"`
     - `"Read"`
     - `"Write"`
-- `"RemovePermissions"` (Array of Strings) - Stale identities to actively revoke. E.g., `["Domain\\OldUser"]`
+  - `"Ensure"` (String) - `"Present"` (default) to grant/update access, `"Absent"` to actively revoke access.
 - `"Shares"` (Array of Objects) - **SMB File Sharing:**
   - Multiple shares can be hosted over the same directory.
   - `"Name"` (String) - The exposed network share name.
@@ -115,7 +117,7 @@ Manages standard FileSystem folders, attributes, explicit NTFS Security ACLs, an
       - `"Change"` (Read/Write without ownership)
       - `"Read"` (Read-Only)
       - `"Custom"`
-  - `"RemovePermissions"` (Array of Strings) - Stale identities to actively revoke. E.g., `["Domain\\OldUser"]`
+    - `"Ensure"` (String) - `"Present"` (default) to grant/update access, `"Absent"` to actively revoke access.
 
 ### `IISAppPools` (Array of Objects)
 Dynamically manages discrete AppPools.

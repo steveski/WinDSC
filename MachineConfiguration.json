@@ -131,13 +131,15 @@
                 "Hidden": false,
                 "System": false
             },
-            "RemovePermissions": [
-                "Domain\\OldUser"
-            ],
             "Permissions": [
                 {
+                    "AccountName": "Domain\\OldUser",
+                    "Ensure": "Absent"
+                },
+                {
                     "AccountName": "Administrators",
-                    "Access": "FullControl"
+                    "Access": "FullControl",
+                    "Ensure": "Present"
                 }
             ],
             "Shares": [
@@ -146,38 +148,56 @@
                     "Type": "Folder",
                     "Description": "Share-BusinessObjects",
                     "AdministrativeShare": false,
-                    "RemovePermissions": [
-                        "Domain\\OldUser"
-                    ],
                     "Permissions": [
                         {
+                            "AccountName": "Domain\\OldUser",
+                            "Ensure": "Absent"
+                        },
+                        {
                             "AccountName": "Domain\\Administrator",
-                            "Access": "FullControl"
+                            "Access": "FullControl",
+                            "Ensure": "Present"
                         }
                     ]
                 }
             ]
         }
     ],
-    "HostsToRemove": [
-        "old.site1.local"
+    "Hosts": [
+        {
+            "HostName": "old.site1.local",
+            "Ensure": "Absent"
+        },
+        {
+            "HostName": "site1.local",
+            "IpAddress": "127.0.0.1",
+            "Ensure": "Present"
+        },
+        {
+            "HostName": "dummy.site1.local",
+            "IpAddress": "127.0.0.1",
+            "Ensure": "Present"
+        }
     ],
-    "Hosts": {
-        "site1.local": "127.0.0.1",
-        "dummy.site1.local": "127.0.0.1"
-    },
     "EnabledFeatures": [
     ],
     "DisabledFeatures": [
     ],
     "Certificates": [
         {
+            "Name": "SomeOldCert",
+            "Thumbprint": "#{AbsentCertThumbprint_SomeOldCert}#",
+            "Ensure": "Absent",
+            "ManageForAccount": "Computer"
+        },
+        {
             "SecureFile": "TheApp_Dev.pfx",
             "PasswordKey": "TheApp_Dev",
             "ManageForAccount": "Computer",
             "ReadAccessAccounts": [
                 "#{SvcAccountDomain}#\\#{SvcAccountName}#"
-            ]
+            ],
+            "Ensure": "Present"
         }
     ],
     "EventLogs": {

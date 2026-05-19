@@ -43,7 +43,23 @@ foreach ($property in $eventLogsObject.PSObject.Properties) {
         $logName = "Application"
     }
 
-    Write-Verbose "Ensuring Event Log Source: '$sourceName' in Log: '$logName'"
+    $ensure = if ($logProps -is [System.Management.Automation.PSCustomObject]) { $logProps.Ensure } else { $logProps["Ensure"] }
+    if (-not $ensure) { $ensure = "Present" }
+
+    Write-Verbose "Ensuring Event Log Source: '$sourceName' in Log: '$logName' (Ensure: $ensure)"
+
+    if ($ensure -eq "Absent") {
+        try {
+            if ([System.Diagnostics.EventLog]::SourceExists($sourceName)) {
+                Write-Verbose "Removing Event Source '$sourceName'."
+                [System.Diagnostics.EventLog]::DeleteEventSource($sourceName)
+                Write-Host "Removed Event Source: $sourceName" -ForegroundColor DarkYellow
+            }
+        } catch {
+            Write-Warning "Failed to remove Event Log source '$sourceName'. Error: $_"
+        }
+        continue
+    }
 
     try {
         if (-not [System.Diagnostics.EventLog]::SourceExists($sourceName)) {
@@ -77,7 +93,7 @@ foreach ($property in $eventLogsObject.PSObject.Properties) {
         # elseif ($level -match "Err") { $entryType = "Error" }
 
         try {
-            # Write-EventLog -LogName $logName -Source $sourceName -EventId $eventId -EntryType $entryType -Message "Configuration Applied via IISDSC" -ErrorAction SilentlyContinue
+            # Write-EventLog -LogName $logName -Source $sourceName -EventId $eventId -EntryType $entryType -Message "Configuration Applied via WinDSC" -ErrorAction SilentlyContinue
             Write-Verbose "Configuration defines EventId $eventId and Level $level. Not writing test event to avoid log spam, but source is ready to receive them."
         } catch { }
     }

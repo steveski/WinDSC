@@ -5,6 +5,44 @@ param (
 )
 
 foreach ($cert in $Config) {
+    $ensure = if ($cert.Ensure) { $cert.Ensure } else { "Present" }
+
+    $storeLocation = [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
+    if ($cert.ManageForAccount -eq "User") {
+        $storeLocation = [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+    }
+
+    if ($ensure -eq "Absent") {
+        if (-not $cert.Thumbprint) {
+            Write-Warning "Certificate Ensure is Absent, but Thumbprint is missing. Cannot remove."
+            continue
+        }
+        $thumbprintToRemove = $cert.Thumbprint -replace "\s",""
+        
+        Write-Host "Ensuring certificate ($thumbprintToRemove) is removed from $storeLocation\My..." -ForegroundColor Cyan
+        
+        try {
+            $store = New-Object System.Security.Cryptography.X509Certificates.X509Store([System.Security.Cryptography.X509Certificates.StoreName]::My, $storeLocation)
+            $store.Open('ReadWrite')
+            
+            $existing = $store.Certificates | Where-Object { $_.Thumbprint -eq $thumbprintToRemove }
+            
+            if ($existing) {
+                Write-Host "  -> Removing certificate ($thumbprintToRemove)..." -ForegroundColor Yellow
+                foreach ($c in $existing) {
+                    $store.Remove($c)
+                }
+                Write-Host "  -> Certificate removed successfully." -ForegroundColor Green
+            } else {
+                Write-Host "  -> Certificate ($thumbprintToRemove) is already absent." -ForegroundColor DarkGreen
+            }
+            $store.Close()
+        } catch {
+            Write-Error "Failed to remove certificate $thumbprintToRemove : $($_.Exception.Message)"
+        }
+        continue
+    }
+
     if (-not $cert.SecureFile -or -not $cert.PasswordKey -or -not $cert.ManageForAccount) {
         Write-Warning "Certificate configuration is missing SecureFile, PasswordKey, or ManageForAccount. Skipping."
         continue
@@ -25,11 +63,6 @@ foreach ($cert in $Config) {
     if (-not (Test-Path $certPath)) {
         Write-Warning "Certificate file not found at: $certPath. Did the pipeline download it securely?"
         continue
-    }
-
-    $storeLocation = [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
-    if ($cert.ManageForAccount -eq "User") {
-        $storeLocation = [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
     }
 
     Write-Host "Ensuring certificate $certPath is installed to $storeLocation\My..." -ForegroundColor Cyan

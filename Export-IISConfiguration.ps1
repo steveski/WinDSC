@@ -94,7 +94,11 @@ function Get-DeepConfigurationAsHash {
                 }
             }
             if ($colArray.Count -gt 0) {
-                $hash["Collection"] = $colArray
+                if ($hash.Count -eq 0) {
+                    return $colArray
+                } else {
+                    $hash["Collection"] = $colArray
+                }
             }
         }
     } else {
@@ -160,6 +164,7 @@ $siteFormatted.AdvancedSettings.Remove("name")
 $siteFormatted.AdvancedSettings.Remove("physicalPath")
 $siteFormatted.AdvancedSettings.Remove("applicationPool")
 $siteFormatted.AdvancedSettings.Remove("bindings")
+$siteFormatted.AdvancedSettings.Remove("Collection")
 
 
 # --- 2. Gather Nested WebApplications ---
@@ -181,6 +186,7 @@ foreach ($app in $webApps) {
     $appFormatted.AdvancedSettings.Remove("path")
     $appFormatted.AdvancedSettings.Remove("physicalPath")
     $appFormatted.AdvancedSettings.Remove("applicationPool")
+    $appFormatted.AdvancedSettings.Remove("Collection")
     
     $appsArray += [pscustomobject]$appFormatted
 }

@@ -55,6 +55,7 @@ stages:
 - stage: Deploy
   variables:
     - group: ServiceAccounts${{ parameters.environment }}${{ parameters.serverGroup }}
+    - group: AbsentCertificate
     - workingDirectory: '$(Pipeline.Workspace)/$(Build.DefinitionName)'
   jobs:
   - deployment: Deploy_${{ parameters.environment }}_${{ parameters.serverGroup }}
