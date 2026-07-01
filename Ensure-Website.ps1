@@ -45,9 +45,11 @@ if ($Config.IISServerAdvancedSettings) {
                 if (-not [string]::IsNullOrWhiteSpace($propName)) {
                     if ($propName -match "/") {
                         $lastDotIndex = $propName.LastIndexOf('.')
-                        if ($lastDotIndex -gt -1) {
-                            $filter = $propName.Substring(0, $lastDotIndex)
-                            $name = $propName.Substring($lastDotIndex + 1)
+                        $lastSlashIndex = $propName.LastIndexOf('/')
+                        $splitIndex = [Math]::Max($lastDotIndex, $lastSlashIndex)
+                        if ($splitIndex -gt -1) {
+                            $filter = $propName.Substring(0, $splitIndex)
+                            $name = $propName.Substring($splitIndex + 1)
                             
                             Write-Verbose "Setting Global WebConfiguration property '$name' in filter '$filter'"
                             try {
@@ -268,9 +270,11 @@ if ($Config.AdvancedSettings) {
                         if ($propName -match "/") {
                             # It's an explicit WebConfiguration path (like system.webServer/security/authentication/...)
                             $lastDotIndex = $propName.LastIndexOf('.')
-                            if ($lastDotIndex -gt -1) {
-                                $filter = $propName.Substring(0, $lastDotIndex)
-                                $name = $propName.Substring($lastDotIndex + 1)
+                            $lastSlashIndex = $propName.LastIndexOf('/')
+                            $splitIndex = [Math]::Max($lastDotIndex, $lastSlashIndex)
+                            if ($splitIndex -gt -1) {
+                                $filter = $propName.Substring(0, $splitIndex)
+                                $name = $propName.Substring($splitIndex + 1)
                                 Set-WebConfigurationProperty -PSPath "IIS:\" -Location $siteName -Filter $filter -Name $name -Value $propValue -ErrorAction Stop
                             } else {
                                 Write-Warning "WebConfiguration property '$propName' must contain a dot separator for the property name."
@@ -361,9 +365,11 @@ if ($Config.WebApps) {
                                 if ($propName -match "/") {
                                     # It's an explicit WebConfiguration path
                                     $lastDotIndex = $propName.LastIndexOf('.')
-                                    if ($lastDotIndex -gt -1) {
-                                        $filter = $propName.Substring(0, $lastDotIndex)
-                                        $name = $propName.Substring($lastDotIndex + 1)
+                                    $lastSlashIndex = $propName.LastIndexOf('/')
+                                    $splitIndex = [Math]::Max($lastDotIndex, $lastSlashIndex)
+                                    if ($splitIndex -gt -1) {
+                                        $filter = $propName.Substring(0, $splitIndex)
+                                        $name = $propName.Substring($splitIndex + 1)
                                         # Use Location "$siteName/$appName" for nested apps
                                         Set-WebConfigurationProperty -PSPath "IIS:\" -Location "$siteName/$appName" -Filter $filter -Name $name -Value $propValue -ErrorAction Stop
                                     } else {
