@@ -13,6 +13,62 @@ param (
 
 Import-Module WebAdministration -ErrorAction SilentlyContinue
 
+# Helper to deeply resolve JSON PSCustomObjects to Hashtables
+function Convert-ToHashtable {
+    param([Parameter(Mandatory=$true)] [AllowNull()] $Obj)
+    if ($null -eq $Obj) { return $null }
+    if ($Obj -is [array]) {
+        $arr = @()
+        foreach ($item in $Obj) { $arr += Convert-ToHashtable -Obj $item }
+        return $arr
+    } elseif ($Obj -is [System.Management.Automation.PSCustomObject]) {
+        $hash = @{}
+        foreach ($prop in $Obj.PSObject.Properties) {
+            $hash[$prop.Name] = Convert-ToHashtable -Obj $prop.Value
+        }
+        return $hash
+    }
+    return $Obj
+}
+
+# Apply Global Server Advanced Settings if present
+if ($Config.IISServerAdvancedSettings) {
+    Write-Verbose "Applying IIS Server Advanced Settings"
+    $advList = if ($Config.IISServerAdvancedSettings -is [array]) { $Config.IISServerAdvancedSettings } else { @($Config.IISServerAdvancedSettings) }
+
+    foreach ($adv in $advList) {
+        if ($adv) {
+            foreach ($property in $adv.PSObject.Properties) {
+                $propName = $property.Name
+                $propValue = Convert-ToHashtable -Obj $property.Value
+                
+                if (-not [string]::IsNullOrWhiteSpace($propName)) {
+                    if ($propName -match "/") {
+                        $lastDotIndex = $propName.LastIndexOf('.')
+                        if ($lastDotIndex -gt -1) {
+                            $filter = $propName.Substring(0, $lastDotIndex)
+                            $name = $propName.Substring($lastDotIndex + 1)
+                            
+                            Write-Verbose "Setting Global WebConfiguration property '$name' in filter '$filter'"
+                            try {
+                                Set-WebConfigurationProperty -PSPath "MACHINE/WEBROOT" -Filter $filter -Name $name -Value $propValue -ErrorAction Stop
+                                Write-Host "Set global $propName successfully" -ForegroundColor Green
+                            } catch {
+                                Write-Warning "Failed to set global property '$propName'. Error: $_"
+                            }
+                        } else {
+                            Write-Warning "Global WebConfiguration property '$propName' must contain a dot separator."
+                        }
+                    } else {
+                        Write-Warning "Global properties without a path ('/') are not supported yet: $propName"
+                    }
+                }
+            }
+        }
+    }
+    return # Exit early since this was just a global settings call
+}
+
 $siteName = $Config.SiteName
 Write-Verbose "Ensuring Website: $siteName"
 
@@ -184,24 +240,6 @@ if ($Config.FailedRequestTracing) {
 
 # 4 Advanced Settings
 if ($Config.AdvancedSettings) {
-    # Helper to deeply resolve JSON PSCustomObjects to Hashtables
-    function Convert-ToHashtable {
-        param([Parameter(Mandatory=$true)] [AllowNull()] $Obj)
-        if ($null -eq $Obj) { return $null }
-        if ($Obj -is [array]) {
-            $arr = @()
-            foreach ($item in $Obj) { $arr += Convert-ToHashtable -Obj $item }
-            return $arr
-        } elseif ($Obj -is [System.Management.Automation.PSCustomObject]) {
-            $hash = @{}
-            foreach ($prop in $Obj.PSObject.Properties) {
-                $hash[$prop.Name] = Convert-ToHashtable -Obj $prop.Value
-            }
-            return $hash
-        }
-        return $Obj
-    }
-
     # JSON might have AdvancedSettings as an array of objects or a single object.
     $advList = if ($Config.AdvancedSettings -is [array]) { $Config.AdvancedSettings } else { @($Config.AdvancedSettings) }
 

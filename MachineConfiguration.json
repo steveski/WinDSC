@@ -1,6 +1,14 @@
 [{
     "TargetMachineNames": ["Server01SA", "Server01SAB", "SLAPPY"],
     "TimeZone": "AUS Eastern Standard Time",
+    "IISServerAdvancedSettings": [
+        {
+            "system.web/machineKey/validation": "HMACSHA256",
+            "system.web/machineKey/decryption": "AES",
+            "system.web/machineKey/validationKey": "#{SubstGlobalMachineKeyValidationKey}#",
+            "system.web/machineKey/decryptionKey": "#{SubstGlobalMachineKeyDecryptionKey}#"
+        }
+    ],
     "IISAppPools": [
         {
             "Name": "Pool1",

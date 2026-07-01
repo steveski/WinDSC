@@ -105,6 +105,12 @@ foreach ($configBlock in $configData) {
             .\Ensure-Server-Features.ps1 -Config $configBlock
         }
 
+        # 0.75 Apply IIS Server Advanced Settings
+        if ($configBlock.IISServerAdvancedSettings) {
+            Write-Host "Processing IIS Server Advanced Settings..." -ForegroundColor Cyan
+            .\Ensure-Website.ps1 -Config @{ IISServerAdvancedSettings = $configBlock.IISServerAdvancedSettings }
+        }
+
         # 1. Apply Directories
         if ($configBlock.Directories) {
             Write-Host "Processing Directories..." -ForegroundColor Cyan
